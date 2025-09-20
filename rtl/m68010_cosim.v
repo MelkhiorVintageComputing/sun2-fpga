@@ -12,10 +12,10 @@ module m68010_cosim(
 		    inout  P_RESET_n,
 		    inout  P_HALT_n,
 
-		    inout  P_AS_n,
-		    inout  P_RW_n,
-		    inout  P_UDS_n,
-		    inout  P_LDS_n,
+		    output P_AS_n,
+		    output P_RW_n,
+		    output P_UDS_n,
+		    output P_LDS_n,
 		    output P_BG_n,
 
 		    input  IPL2_n,
@@ -23,7 +23,7 @@ module m68010_cosim(
 		    input  IPL0_n,
 
 		    output P_FC2,
-		    inout  P_FC1,
+		    output P_FC1,
 		    output P_FC0,
    
 		    inout  P_A1,
@@ -129,9 +129,9 @@ module m68010_cosim(
 //   assign IPL1_n = ipl[1];
 //   assign IPL0_n = ipl[0];
 
-   assign P_FC2 = fc[2];
+   assign P_FC2 = drive_bus ? fc[2] : 1'bz;
    assign P_FC1 = drive_bus ? fc[1] : 1'bz;
-   assign P_FC0 = fc[0];
+   assign P_FC0 = drive_bus ? fc[0] : 1'bz;
 
    reg RESET = 0;
    reg HALT = 0;
@@ -149,7 +149,7 @@ module m68010_cosim(
    assign P_RW_n  = drive_bus ? ~RW : 1'bz;
    assign P_UDS_n = drive_bus ? ~UDS : 1'bz;
    assign P_LDS_n = drive_bus ? ~LDS : 1'bz;
-   assign P_BG_n  = drive_bus ? ~BG : 1'bz;
+   assign P_BG_n  = ~BG;
 
    reg [3:0] state;
    

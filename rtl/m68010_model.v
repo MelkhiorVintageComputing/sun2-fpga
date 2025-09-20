@@ -10,18 +10,18 @@ module m68010_model(
 		    inout  P_RESET_n,
 		    inout  P_HALT_n,
 
-		    inout  P_AS_n,
-		    inout  P_RW_n,
-		    inout  P_UDS_n,
-		    inout  P_LDS_n,
-		    output  P_BG_n,
+		    output P_AS_n,
+		    output P_RW_n,
+		    output P_UDS_n,
+		    output P_LDS_n,
+		    output P_BG_n,
 
 		    input  IPL2_n,
 		    input  IPL1_n,
 		    input  IPL0_n,
 
 		    output P_FC2,
-		    inout  P_FC1,
+		    output P_FC1,
 		    output P_FC0,
    
 		    inout  P_A1,
@@ -120,16 +120,16 @@ module m68010_model(
    assign data_bus = { P_D15,P_D14,P_D13,P_D12,P_D11,P_D10,P_D9,P_D8,
 		       P_D7,P_D6,P_D5,P_D4,P_D3,P_D2,P_D1,P_D0 };
    reg [15:0]  read_data;
-   reg [32:0]  read_data32;
+   reg [31:0]  read_data32;
 
    
 //   assign IPL2_n = ipl[2];
 //   assign IPL1_n = ipl[1];
 //   assign IPL0_n = ipl[0];
 
-   assign P_FC2 = fc[2];
+   assign P_FC2 = drive_bus ? fc[2] : 1'bz;
    assign P_FC1 = drive_bus ? fc[1] : 1'bz;
-   assign P_FC0 = fc[0];
+   assign P_FC0 = drive_bus ? fc[0] : 1'bz;
 
    reg RESET = 0;
    reg HALT = 0;
@@ -147,7 +147,7 @@ module m68010_model(
    assign P_RW_n  = drive_bus ? ~RW : 1'bz;
    assign P_UDS_n = drive_bus ? ~UDS : 1'bz;
    assign P_LDS_n = drive_bus ? ~LDS : 1'bz;
-   assign P_BG_n  = drive_bus ? ~BG : 1'bz;
+   assign P_BG_n  = ~BG;
 
    reg [3:0] state;
    

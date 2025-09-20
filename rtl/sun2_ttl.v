@@ -16,25 +16,25 @@
 		   output C100,
 		   output P_VPA_n,
 		   output P_BERR_n,
-		   inout  P_DTACK_n,
+		   output P_DTACK_n,
 		   output P_BR_n,
-		   output  P_BGACK_n,
+		   output P_BGACK_n,
 
 		   inout  P_RESET_n,
 		   inout  P_HALT_n,
 
-		   inout  P_AS_n,
-		   inout  P_RW_n,
-		   inout  P_UDS_n,
-		   inout  P_LDS_n,
-		   inout  P_BG_n,
+		   input  P_AS_n,
+		   input  P_RW_n,
+		   input  P_UDS_n,
+		   input  P_LDS_n,
+		   input  P_BG_n,
 
 		   output IPL2_n,
 		   output IPL1_n,
 		   output IPL0_n,
 
 		   input  P_FC2,
-		   inout  P_FC1,
+		   input  P_FC1,
 		   input  P_FC0,
    
 		   inout  P_A1,
@@ -82,6 +82,23 @@
     // name discrepancy between the 68000 and the schematics
     wire  P_BACK_n;
     assign P_BGACK_n = P_BACK_n;
+
+    // Some of the M68K signals aren't driven all the time despite being inputs.
+    // create a local version of each signal so we don't run afoul of Warning 3107
+    wire   PX_AS_n;
+    assign PX_AS_n = P_AS_n;
+    wire   PX_RW_n;
+    assign PX_RW_n = P_RW_n;
+    wire   PX_UDS_n;
+    assign PX_UDS_n = P_UDS_n;
+    wire   PX_LDS_n;
+    assign PX_LDS_n = P_LDS_n;
+    wire   PX_FC0;
+    assign PX_FC0 = P_FC0;
+    wire   PX_FC1;
+    assign PX_FC1 = P_FC1;
+    wire   PX_FC2;
+    assign PX_FC2 = P_FC2;
 
     wire [15:0] p_databus;
     assign p_databus = { P_D15, P_D14, P_D13, P_D12, P_D11, P_D10, P_D9, P_D8,
@@ -176,7 +193,7 @@
 //   wire [15:0] IOD;
 //   assign IOD = p_databus;
 
-assign AS = ~P_AS_n;
+assign AS = ~PX_AS_n;
    assign Q_AS_n = ~AS;
 
    tri1 IOD15,IOD14,IOD13,IOD12,IOD11,IOD10,IOD9,IOD8;
@@ -229,15 +246,15 @@ assign AS = ~P_AS_n;
    always @(posedge AS)
      LA1_5 <= {P_A5, P_A4, P_A3, P_A2, P_A1 };
 
-   assign DS_n = ~(~P_UDS_n | ~P_LDS_n);
-   assign RW = ~P_RW_n;
+   assign DS_n = ~(~PX_UDS_n | ~PX_LDS_n);
+   assign RW = ~PX_RW_n;
 
    wire rw_s7;
    assign rw_s7 = ~(~RW | ~C_S7);
    
    assign IODS_n = ~(~DS_n & ~rw_s7);
-   assign IOUDS = ~P_UDS_n & ~rw_s7;
-   assign IOLDS = ~P_LDS_n & ~rw_s7;
+   assign IOUDS = ~PX_UDS_n & ~rw_s7;
+   assign IOLDS = ~PX_LDS_n & ~rw_s7;
    
 
    // -------------------
@@ -342,9 +359,9 @@ assign AS = ~P_AS_n;
 		      .O1(DATAEN_n),
 		      .O2(XREQ_n),
 		      .O3(XEN_n),
-		      .O4(P_RW_n),
-		      .O5(P_LDS_n),
-		      .O6(P_UDS_n),
+		      .O4(PX_RW_n),
+		      .O5(PX_LDS_n),
+		      .O6(PX_UDS_n),
 		      .O7(P1_XACK_n),
 		      .O8(CE_BYTE_n),
 		      .O9(CE_WORD_n));
@@ -371,6 +388,10 @@ assign AS = ~P_AS_n;
 //temp - disable refresh
 wire REN_n = 1'b1;
 wire XEN_n = 1'b1;
+//to avoid a warning from cver, dummy outputs
+wire XEN_n_IGNORED;
+wire REN_n_IGNORED;
+   
    
    // DVMA Controller
    pal16R4_u213 u213(.D0(SYSB),
@@ -381,11 +402,11 @@ wire XEN_n = 1'b1;
 		     .D5(XREQ_n),
 		     .D6(RREQ_n),
 		     .D7(SDS_n),
-		     .O0(P_AS_n),
-		     .O1(P_FC1),
+		     .O0(PX_AS_n),
+		     .O1(PX_FC1),
 //temp
-//		     .Q0(XEN_n),
-//		     .Q1(REN_n),
+		     .Q0(XEN_n_IGNORED),
+		     .Q1(REN_n_IGNORED),
 		     .Q2(XHALT_n),
 		     .Q3(XBERR_n),
 		     .O2(P_BR_n),
@@ -502,7 +523,7 @@ wire XEN_n = 1'b1;
 		   .Y2(cx_a1),
 		   .Y3(cx_a2),
 		   .Y4(),
-		   .B(P_FC2),
+		   .B(PX_FC2),
 		   .OE_n(1'b0));
 
    // Segment map
@@ -725,9 +746,9 @@ wire XEN_n = 1'b1;
 		     .D1(TYPE1),
 		     .D2(MOD),
 		     .D3(ERR_n),
-		     .D4(P_RW_n),
-		     .D5(P_FC0),
-		     .D6(P_FC1),
+		     .D4(PX_RW_n),
+		     .D5(PX_FC0),
+		     .D6(PX_FC1),
 		     .D7(BOOTEN_n),
 		     .O0(DIS_n),
 		     .O1(ACC),		
@@ -778,8 +799,8 @@ wire XEN_n = 1'b1;
 		   .D6(PROT3),
 		   .D7(L),
 		   .A(RW),
-		   .B(P_FC1),
-		   .C(P_FC2),
+		   .B(PX_FC1),
+		   .C(PX_FC2),
 // bug?
 //`define not_a_bug 1
 `ifdef not_a_bug
@@ -878,10 +899,10 @@ wire XEN_n = 1'b1;
 		   .R_n(WR_PMAP1U_n));
 
    //
-   ttl_74F138 u321(.A0(P_FC0),
-		   .A1(P_FC1),
-		   .A2(P_FC2),
-		   .F1(P_AS_n),
+   ttl_74F138 u321(.A0(PX_FC0),
+		   .A1(PX_FC1),
+		   .A2(PX_FC2),
+		   .F1(PX_AS_n),
 		   .F2(1'b0),
 		   .F3(P_BACK_n),
 		   .Q0(),
@@ -1386,15 +1407,15 @@ wire XEN_n = 1'b1;
    wire RASEN_n, P2_RAS_n, P2_WEL_n, P2_WEU_n;
 
    wire P_AS_n_xx;
-   assign P_AS_n_xx = ~x_as;
+   assign P_AS_n_xx = ~x_as; // U122
 
    assign RASEN_n = ~(~C_S7 | ~SYSB);
 
    assign P2_RAS_n = ~(~RASEN_n & ~P_AS_n_xx);
 
-   assign P2_WEL_n = ~(~P_LDS_n & ~WR_RAM_n);
+   assign P2_WEL_n = ~(~PX_LDS_n & ~WR_RAM_n);
 
-   assign P2_WEU_n = ~(~P_UDS_n & ~WR_RAM_n);
+   assign P2_WEU_n = ~(~PX_UDS_n & ~WR_RAM_n);
 
    // -------------------
 
@@ -1412,7 +1433,7 @@ wire XEN_n = 1'b1;
 		 .MCS_n(1'b0),
 		 .MAS_n(MAS_n),
 		 .MDS_n(MDS_n),
-		 .MRW_n(P_RW_n),
+		 .MRW_n(PX_RW_n),
 		 .MFLG_n(),
 		 .SP0(1'b1),
 		 .SP1(1'b1),
@@ -1550,7 +1571,7 @@ wire XEN_n = 1'b1;
    // -------------------
 
    // Address out
-   ttl_74LS633 u700(.D1(P_LDS_n),
+   ttl_74LS633 u700(.D1(PX_LDS_n),
 		    .D2(P_A1),
 		    .D3(P_A2),
 		    .D4(P_A3),
