@@ -1,0 +1,28 @@
+diff --git a/Makefile b/Makefile
+index 5ab4767..d969e7c 100644
+--- a/Makefile
++++ b/Makefile
+@@ -12,7 +12,7 @@ EXEPATH = ./
+ .CFILES   = $(MAINFILES) $(OSDFILES) $(MUSASHIFILES) $(MUSASHIGENCFILES)
+ .OFILES   = $(.CFILES:%.c=%.o)
+ 
+-CC        = gcc
++CC        = gcc -fPIC -m32
+ WARNINGS  = -Wall -Wextra -pedantic
+ CFLAGS    = $(WARNINGS)
+ LFLAGS    = $(WARNINGS)
+diff --git a/m68kconf.h b/m68kconf.h
+index 8844952..33dc1e7 100644
+--- a/m68kconf.h
++++ b/m68kconf.h
+@@ -147,8 +147,8 @@
+  * want to properly emulate the m68010 or higher. (moves uses function codes
+  * to read/write data from different address spaces)
+  */
+-#define M68K_EMULATE_FC             OPT_OFF
+-#define M68K_SET_FC_CALLBACK(A)     your_set_fc_handler_function(A)
++#define M68K_EMULATE_FC             OPT_SPECIFY_HANDLER
++#define M68K_SET_FC_CALLBACK(A)     set_fc_handler_function(A)
+ 
+ /* If ON, CPU will call the pc changed callback when it changes the PC by a
+  * large value.  This allows host programs to be nicer when it comes to
