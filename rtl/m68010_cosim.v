@@ -7,7 +7,7 @@ module m68010_cosim(
 		    input  P_BERR_n,
 		    input  P_DTACK_n,
 		    input  P_BR_n,
-		    output P_BGACK_n,
+		    input  P_BGACK_n,
 
 		    inout  P_RESET_n,
 		    inout  P_HALT_n,
@@ -16,7 +16,7 @@ module m68010_cosim(
 		    inout  P_RW_n,
 		    inout  P_UDS_n,
 		    inout  P_LDS_n,
-		    inout  P_BG_n,
+		    output P_BG_n,
 
 		    input  IPL2_n,
 		    input  IPL1_n,
@@ -133,11 +133,8 @@ module m68010_cosim(
    assign P_FC1 = drive_bus ? fc[1] : 1'bz;
    assign P_FC0 = fc[0];
 
-   reg BGACK = 0;
    reg RESET = 0;
    reg HALT = 0;
-
-   assign P_BGACK_n = BGACK;
 
    assign P_RESET_n = drive_bus ? ~RESET : 1'bz;
    //assign P_HALT_n = drive_bus ? ~HALT : 1'bz;
@@ -250,7 +247,6 @@ module m68010_cosim(
    
    initial
      begin
-	BGACK = 0;
 	RESET = 0;
 	HALT = 0;
 

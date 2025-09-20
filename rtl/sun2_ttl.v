@@ -18,7 +18,7 @@
 		   output P_BERR_n,
 		   inout  P_DTACK_n,
 		   output P_BR_n,
-		   input  P_BGACK_n,
+		   output  P_BGACK_n,
 
 		   inout  P_RESET_n,
 		   inout  P_HALT_n,
@@ -78,6 +78,10 @@
 		   inout  P_D14,
 		   inout  P_D15
 		   );
+
+    // name discrepancy between the 68000 and the schematics
+    wire  P_BACK_n;
+    assign P_BGACK_n = P_BACK_n;
 
     wire [15:0] p_databus;
     assign p_databus = { P_D15, P_D14, P_D13, P_D12, P_D11, P_D10, P_D9, P_D8,
