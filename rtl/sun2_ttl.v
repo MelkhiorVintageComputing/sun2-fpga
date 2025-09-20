@@ -272,7 +272,7 @@ assign AS = ~P_AS_n;
 		    .Q(C_S5),
 		    .Q_n(C_S5_n));
    
-   ttl_74F74 u205_a(.D(C_S6),
+   ttl_74F74 u205_a(.D(C_S5),
 		    .CLK(C100_n),
 		    .S(H1),
 		    .R(AS),
@@ -733,8 +733,8 @@ wire XEN_n = 1'b1;
 		     .Q2(MOD),
 		     .Q3(ACC),
 		     .O2(P_BACK_n),
-		     .O3(C_S6),
-		     .CLK(C_S6),
+		     .O3(C_S5),
+		     .CLK(C_S5),
 		     .OE_n(C_S6_n));
 
    wire WR_PMAP0X_n;
@@ -974,7 +974,7 @@ wire XEN_n = 1'b1;
 		   .A2(RW),
 		   .F1(ERR),
 		   .F2(DS_n),
-		   .F3(C_S6),
+		   .F3(C_S5),
 		   .Q0(RD_RAM_n),
 		   .Q1(RD_IO_n),
 		   .Q2(MRDC_n),
