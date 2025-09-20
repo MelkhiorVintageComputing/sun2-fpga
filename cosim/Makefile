@@ -1,8 +1,10 @@
 
 #
 
-INCS = -I../../cver/gplcver-2.12a.src/pli_incs \
-	-I../../Musashi
+MUSASHI=../../Musashi
+
+INCS = -I/usr/include/cver/ \
+	-I$(MUSASHI)
 
 CFLAGS= -fPIC -Wall -g $(INCS) -m32
 LFLAGS= -G -shared -export-dynamic -m elf_i386
@@ -16,7 +18,7 @@ cosim_mc68010.o: cosim_mc68010.c
 
 cosim_mc68010.so: cosim_mc68010.o
 	$(LD) $(LFLAGS) cosim_mc68010.o -o cosim_mc68010.so \
-	../../Musashi/m68kcpu.o ../../Musashi/m68kops.o ../../Musashi/softfloat/softfloat.o \
+	$(MUSASHI)/m68kcpu.o $(MUSASHI)/m68kops.o $(MUSASHI)/softfloat/softfloat.o \
 	-lpthread
 
 cosim_mc68010.vpi: cosim_mc68010.o
@@ -24,7 +26,7 @@ cosim_mc68010.vpi: cosim_mc68010.o
 
 test:
 	$(CC) $(CFLAGS) -D__TEST__ -g -o test_cosim cosim_mc68010.c \
-	../../Musashi/m68kcpu.o ../../Musashi/m68kops.o ../../Musashi/softfloat/softfloat.o \
+	$(MUSASHI)/m68kcpu.o $(MUSASHI)/m68kops.o $(MUSASHI)/softfloat/softfloat.o \
 	-lpthread
 
 clean:
