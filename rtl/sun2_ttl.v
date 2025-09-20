@@ -1,4 +1,3 @@
-`define DEBUG_IO 1
 // Sun2 "guts" in verilog
 //
 // Pretty much a straight transcription of the schematics into verilog,

@@ -1,5 +1,12 @@
 `timescale 1ns / 1ns
 
+// `define DEBUG_P2RAM 1
+// `define DEBUG_IO 1
+// `define DEBUG_PMAP_RD 1
+// `define DEBUG_SMAP_WR 1
+// `define DEBUG_RAM_IO 1
+// `define DEBUG_S6 1
+
 `include "ttl_74F74.v"
 `include "ttl_74F74_d.v"
 `include "ttl_74F138.v"

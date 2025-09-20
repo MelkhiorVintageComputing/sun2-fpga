@@ -32,6 +32,7 @@ module p2_ram(input clk,
 		  if (~weu_n)
 		    ramh[b_addr] <= datai[15:8];
 	       end
+`ifdef DEBUG_P2RAM
 	     if (~wel_n && ~weu_n)
 	       $display("p2_ram: %x <- %x", addr, datai);
 	     else
@@ -40,6 +41,7 @@ module p2_ram(input clk,
 	       else
 		 if (~weu_n)
 		   $display("p2_ram: %x <- %x (b)", addr, datai[15:8]);
+`endif
 	  end
      end
 
@@ -50,13 +52,17 @@ module p2_ram(input clk,
 	     if (addr <= 524287)
 	       begin
 		  do <= { ramh[b_addr], raml[b_addr] };
+`ifdef DEBUG_P2RAM
 		  $display("p2_ram: %x -> %x", addr, { ramh[b_addr], raml[b_addr] });
+`endif
 	       end
 	     else
 	       if (addr < 4096*1024)
 		 begin
 		    do <= 16'hffff;
+`ifdef DEBUG_P2RAM
 		    $display("p2_ram: %x -> %x", addr, 16'hffff);
+`endif
 		 end
 	  end
      end
