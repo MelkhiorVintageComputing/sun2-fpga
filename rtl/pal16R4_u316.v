@@ -24,13 +24,13 @@ module pal16R4_u316 (input D0,
 		     input  CLK,
 		     input  OE_n);
 
-   wire clk, read, p_fc0, p_fc1, booten;
+   wire read, p_fc0, p_fc1, booten;
    reg type0, type1, acc = 0, mod = 0;
    wire c_s5c, c_s6, en, itype0, itype1, imod, iacc;
    wire dis, p_back;
    
    // c.s5c type1 type0 mod en read p.fc0 p.fc1 /booten gnd
-   assign c_s5c = clk;
+   assign c_s5c = CLK;
    assign itype0 = D0;
    assign itype1 = D1;
    assign imod = D2;
