@@ -329,7 +329,7 @@ assign AS = ~P_AS_n;
    pal20L10_u212 u212(.I0(P1_A18_n),
 		      .I1(P1_A19_n),
 		      .I2(P1_AC_n),
-		      .I3(P1_NHEN_n),
+		      .I3(P1_BHEN_n),
 		      .I4(P1_MRDC_n),
 		      .I5(P1_MRWC_n),
 		      .I6(PROTERR_n),
