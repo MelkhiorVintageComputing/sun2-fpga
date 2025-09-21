@@ -336,7 +336,7 @@ assign AS = ~P_AS_n;
 		      .I7(EN_DVMA),
 		      .I8(C_S7),
 		      .I9(PARERR),
-		      .I10(MROC_n),
+		      .I10(MRDC_n),
 		      .I11(IORC_n),
 		      .O0(P1IOP_n),
 		      .O1(DATAEN_n),
