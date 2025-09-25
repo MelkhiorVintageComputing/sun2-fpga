@@ -23,14 +23,14 @@ module p2_video(input clk,
    assign vram_addr = addr[16:0];
 
    always @(posedge clk)
-     if (~go_n & ~we_en)
+     if (~go_n & we_en)
        begin
 	  if (en_0) $display("video write %x ", vram_addr);
 	  if (ctrl) $display("ctrl write %x", vram_addr);
        end
 
    always @(posedge clk)
-     if (~go_n & we_en)
+     if (~go_n & ~we_en)
      begin
 	if (en_0) $display("video read %x", vram_addr);
 	if (ctrl) $display("ctrl read %x", vram_addr);
