@@ -18,7 +18,7 @@ module ttl_74F251(
    wire mux;
    wire [2:0] sel;
    
-   assign sel = {A, B, C};
+   assign sel = {C, B, A};
 
    assign mux =
 	       sel == 0 ? D0 :
