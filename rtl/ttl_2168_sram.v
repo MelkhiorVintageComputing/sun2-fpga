@@ -28,7 +28,7 @@ module ttl_2168_sram(
       integer a;
       begin
 	 // random value?
-	 for (a = 0; a <= 4095; a = a + 1) ram[a] = 4'b0;
+	 for (a = 0; a <= 4095; a = a + 1) ram[a] = $random;
       end
    endtask
    
