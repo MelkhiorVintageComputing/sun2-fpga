@@ -15,6 +15,19 @@ module dpram_128k(input clk,
    reg [15:0] do_0 = 0;
    reg [15:0] do_1 = 0;
    
+   task init;
+      integer a;
+      begin
+	 // random value?
+	 for (a = 0; a <= 131071; a = a + 1) ram[a] = $random;
+      end
+   endtask
+   
+   initial
+     begin
+	init;
+     end
+   
    always @(posedge clk)
      begin
 	if (en_0 && wr_en)
@@ -34,7 +47,7 @@ module dpram_128k(input clk,
      end
 
    assign data_out_0 = en_0 ? do_0 : 16'bz;
-   assign data_out_1 = do_1 ? do_1 : 16'bz;
+   assign data_out_1 = en_1 ? do_1 : 16'bz;
    
 endmodule
 
