@@ -10,5 +10,7 @@ module p2_kb(input clk,
 	      inout [15:0] datao);
 
    assign datao = 16'bz;
+
+   assign wait_n = 1'bz;
    
 endmodule

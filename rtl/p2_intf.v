@@ -7,7 +7,7 @@ module p2_intf(input clk,
 	       input 	    weu_n,
 	       input 	    rw_n,
 	       input 	    go_n, 
-	       inout 	    wait_n,
+	       output 	    wait_n,
 	       input [15:0] datai,
 	       inout [15:0] datao);
 

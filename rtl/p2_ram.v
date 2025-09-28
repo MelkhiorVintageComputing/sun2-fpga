@@ -11,7 +11,8 @@ module p2_ram(input clk,
 
    wire wr_en, en;
    assign wr_en = ~wel_n & ~weu_n;
-   assign en = ~go_n;
+   assign en = ~go_n; // need also decode ? (as done in p2_video)
+   reg 	wait_en = 0;
    
    // for sim only
    reg [7:0] ramh[0:262143];
@@ -43,7 +44,15 @@ module p2_ram(input clk,
 		   $display("p2_ram: %x <- %x (b)", addr, datai[15:8]);
 `endif
 	  end
+     end // always @ (posedge clk)
+
+   always @(posedge clk)
+     begin
+	if (!decode) wait_en <= 1;
+	if (decode) wait_en <= go_n;
      end
+
+   assign wait_n = (decode) ? ~wait_en : 1'bz;
 
    always @(posedge clk)
      begin

@@ -10,7 +10,7 @@ module p2_video(input clk,
 	      input 	   wel_n,
 	      input 	   weu_n,
 	      input 	   go_n, 
-	      inout 	   wait_n,
+	      output 	   wait_n,
 	      input [15:0] datai,
 	      inout [15:0] datao);
 
@@ -18,9 +18,18 @@ module p2_video(input clk,
    assign we_en = ~wel_n | ~weu_n;
    assign en_0 = ~go_n & decode;
    assign ctrl = ~go_n & decode_ctl;
+   reg 	wait_en = 0;
    
    wire [16:0] vram_addr;
    assign vram_addr = addr[16:0];
+
+   always @(posedge clk)
+     begin
+	if (!decode & !decode_ctl) wait_en <= 1;
+	if (decode | decode_ctl) wait_en <= go_n;
+     end
+
+   assign wait_n = (decode | decode_ctl) ? ~wait_en : 1'bz;
 
    always @(posedge clk)
      if (~go_n & we_en)
