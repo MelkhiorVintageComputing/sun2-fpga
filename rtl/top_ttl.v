@@ -6,6 +6,7 @@
 // `define DEBUG_SMAP_WR 1
 // `define DEBUG_RAM_IO 1
 // `define DEBUG_S6 1
+// `define DEBUG_SUSKA
 
 `include "ttl_74F74.v"
 `include "ttl_74F74_d.v"
@@ -57,19 +58,19 @@ module top(input clk40);
 
    wire C100;
    wire P_VPA_n;
-   tri1 P_BERR_n;
-   tri1 P_DTACK_n;
-   tri1 P_BR_n;
-   tri1 P_BGACK_n;
+   wire P_BERR_n;
+   wire P_DTACK_n;
+   wire P_BR_n;
+   wire P_BGACK_n;
 
-   tri1 P_RESET_n;
-   tri1 P_HALT_n;
+   wire P_RESET_n;
+   wire P_HALT_n;
 
-   tri1 P_AS_n;
-   tri1 P_RW_n;
-   tri1 P_UDS_n;
-   tri1 P_LDS_n;
-   tri1 P_BG_n;
+   wire P_AS_n;
+   wire P_RW_n;
+   wire P_UDS_n;
+   wire P_LDS_n;
+   wire P_BG_n;
 
    wire IPL2_n;
    wire IPL1_n;
@@ -79,46 +80,46 @@ module top(input clk40);
    wire P_FC1;
    wire P_FC0;
    
-   tri1 P_A1;
-   tri1 P_A2;
-   tri1 P_A3;
-   tri1 P_A4;
-   tri1 P_A5;
-   tri1 P_A6;
-   tri1 P_A7;
-   tri1 P_A8;
-   tri1 P_A9;
-   tri1 P_A10;
-   tri1 P_A11;
-   tri1 P_A12;
-   tri1 P_A13;
-   tri1 P_A14;
-   tri1 P_A15;
-   tri1 P_A16;
-   tri1 P_A17;
-   tri1 P_A18;
-   tri1 P_A19;
-   tri1 P_A20;
-   tri1 P_A21;
-   tri1 P_A22;
-   tri1 P_A23;
+   wire P_A1;
+   wire P_A2;
+   wire P_A3;
+   wire P_A4;
+   wire P_A5;
+   wire P_A6;
+   wire P_A7;
+   wire P_A8;
+   wire P_A9;
+   wire P_A10;
+   wire P_A11;
+   wire P_A12;
+   wire P_A13;
+   wire P_A14;
+   wire P_A15;
+   wire P_A16;
+   wire P_A17;
+   wire P_A18;
+   wire P_A19;
+   wire P_A20;
+   wire P_A21;
+   wire P_A22;
+   wire P_A23;
 
-   tri1 P_D0;
-   tri1 P_D1;
-   tri1 P_D2;
-   tri1 P_D3;
-   tri1 P_D4;
-   tri1 P_D5;
-   tri1 P_D6;
-   tri1 P_D7;
-   tri1 P_D8;
-   tri1 P_D9;
-   tri1 P_D10;
-   tri1 P_D11;
-   tri1 P_D12;
-   tri1 P_D13;
-   tri1 P_D14;
-   tri1 P_D15;
+   wire P_D0;
+   wire P_D1;
+   wire P_D2;
+   wire P_D3;
+   wire P_D4;
+   wire P_D5;
+   wire P_D6;
+   wire P_D7;
+   wire P_D8;
+   wire P_D9;
+   wire P_D10;
+   wire P_D11;
+   wire P_D12;
+   wire P_D13;
+   wire P_D14;
+   wire P_D15;
    
    sun2_ttl sun2(
 		 .clk40(clk40),

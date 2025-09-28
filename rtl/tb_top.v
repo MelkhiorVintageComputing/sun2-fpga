@@ -1,6 +1,9 @@
 `timescale 1ns/1ns
 
+`define cosim
+
 `include "top_ttl.v"
+
 
 module tb();
    reg clk40;
@@ -8,6 +11,7 @@ module tb();
    
    top dut(.clk40(clk40));
 
+/* -----\/----- EXCLUDED -----\/-----
    task test_eeprom;
       begin
 	 dut.m68010.m68k_rw_ram(24'h00000000, 6, 1, 0, 16'h0000);
@@ -214,6 +218,7 @@ module tb();
 	 test_am9513;
       end
    endtask
+ -----/\----- EXCLUDED -----/\----- */
 
    // 40 Mhz
    always
@@ -241,7 +246,12 @@ module tb();
 `ifdef cosim
        #1000 $dumpoff;
 `endif
-    end
+    end   always
+      
+     begin
+        #100000000 $display("Time is %t", $realtime);
+     end
+
 
 endmodule
 

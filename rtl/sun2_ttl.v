@@ -100,6 +100,69 @@
     wire   PX_FC2;
     assign PX_FC2 = P_FC2;
 
+    // pull-{up,down]s
+   // fromM1
+   // S104 
+   //pullup(POR_n);
+   pullup(PX_FC0);
+   pullup(PX_FC1);
+   pullup(PX_FC2);
+   pullup(P_RESET_n);
+   pullup(P_HALT_n);
+   //pullup(H);
+   //pullup(H0);
+   //pullup(H1);
+   // S105
+   pullup(P_A23);
+   pullup(P_A22);
+   pullup(P_A21);
+   pullup(P_A20);
+   pullup(P_A19);
+   pullup(P_A18);
+   pullup(P_A17);
+   pullup(P_A16);
+   pullup(P2_WAIT_n);
+   // S106
+   pullup(INITIN_n);
+   pullup(IOD0);
+   pullup(IOD1);
+   pullup(IOD2);
+   pullup(IOD3);
+   pullup(IOD4);
+   pullup(IOD5);
+   pullup(IOD6);
+   pullup(IOD7);
+   // S103
+   pullup(PX_AS_n);
+   pullup(PX_UDS_n);
+   pullup(PX_LDS_n);
+   pullup(PX_RW_n);
+   pullup(P_A15);
+   pullup(P_A14);
+   pullup(P_A13);
+   pullup(P_A12);
+   pullup(P_A11);
+
+
+   //
+   pullup(P_D0);
+   pullup(P_D1);
+   pullup(P_D2);
+   pullup(P_D3);
+   pullup(P_D4);
+   pullup(P_D5);
+   pullup(P_D6);
+   pullup(P_D7);
+   pullup(P_D8);
+   pullup(P_D9);
+   pullup(P_D10);
+   pullup(P_D11);
+   pullup(P_D12);
+   pullup(P_D13);
+   pullup(P_D14);
+   pullup(P_D15);
+   
+
     wire [15:0] p_databus;
     assign p_databus = { P_D15, P_D14, P_D13, P_D12, P_D11, P_D10, P_D9, P_D8,
 			    P_D7, P_D6, P_D5, P_D4, P_D3, P_D2, P_D1, P_D0 };
@@ -123,22 +186,23 @@
 //   assign IPL0_n = p_ipl[0];
 
    wire [2:0] p_fc;
-   assign p_fc = { IPL2_n, IPL1_n, IPL0_n };
+   assign p_fc = { PX_FC2, PX_FC1, PX_FC0 };
    
    reg POR_n;
    initial
      begin
 	POR_n = 1'b0;
-	#200 POR_n = 1'b1;
+	#2000 POR_n = 1'b1;
      end
 
    // DTACK generator
    wire IOACK_n, IOACK;
    
-   assign IOACK = ~IOACK_n | ~DCPACK_n;
-
+   assign IOACK = ~IOACK_n | ~DCPACK_n; // u101x (74F00)
+   //assign IOACK = 1'b0;
+   
    wire P2_WAIT_n;
-   assign P2_WAIT_n = 1'b1;
+   //assign P2_WAIT_n = 1'b1;
 
    wire LTYPE0, LTYPE1;
    
@@ -150,24 +214,39 @@
 		   .D5(IOACK),
 		   .D6(XACK),
 		   .D7(XACK),
-		   .A(LTYPE0),
-		   .B(LTYPE1),
-		   .C(C_S4),
+		   .A(LTYPE0), // LTYPE0 on pin 11 (S0)
+		   .B(LTYPE1), // LTYPE1 on pin 10 (S1)
+		   .C(C_S4), // C_S4 on pin 9 (S2)
 		   .G_n(1'b0),
 		   .Y(P_DTACK_n),
 		   .W());
+   `ifdef DEBUG_SUSKA
+   always @(posedge C100) $display("(Comb) C100 asserts - u111 inputs are C_S5=%x P2_WAIT_n=%x IOACK=%x XACK=%x LTYPE0=%x LTYP1=%x C_S4=%x",
+				   C_S5, P2_WAIT_n, IOACK, XACK, LTYPE0, LTYPE1, C_S4);
+   `endif
+   `ifdef DEBUG_SUSKA
+   always @(posedge C100) $display("(Comb) C100 asserts - p_addr=%x", p_addr);
+   `endif
 
-   assign ERR = ~PROTERR_n | ~TIMEOUT_n | ~PARERRL_n | ~PARERRU_n;
-   assign ERR_n = ~(ERR & EN_S4);
+   assign ERR = ~PROTERR_n | ~TIMEOUT_n | ~PARERRL_n | ~PARERRU_n; // u114 (74LS20)
+   assign ERR_n = ~(ERR & EN_S4); // i101x (74F00)
 
    ttl_74F74 u105_a(.D(ERR_n),
 		    .CLK(C100_n),
 		    .S(P_BACK_n),
 		    .R(H0),
 		    .Q(BERR_n),
-		    .Q_n(BERR));
+		    .Q_n(BERR), .RESET_n(P_RESET_n));
+   `ifdef DEBUG_SUSKA
+   always @(posedge C100_n) $display("C100_n asserts - u105 inputs are ERR_n=%x C100_n=%x P_BACK_n=%x",
+				   ERR_n, C100_n, P_BACK_n);
+   `endif
 
-   assign P_BERR_n = ~( ~XBERR_n | ~BERR_n );
+   assign P_BERR_n = ~( ~XBERR_n | ~BERR_n ); // u313x (74f08)
+   `ifdef DEBUG_SUSKA
+   always @(posedge C100) $display("(Comb) C100 asserts - u313x inputs are XBERR_n=%x BERR_n=%x",
+				   XBERR_n, BERR_n);
+   `endif
 
    ttl_74LS148 u119(.I_n({INT7_n, INT6_n, INT5_n, INT4_n, INT3_n, INT2_n, INT1_n, L}),
 		    .A_n({IPL2_n, IPL1_n, IPL0_n}),
@@ -179,15 +258,18 @@
    wire INT1_n, INT2_n, INT3_n, INT6_n;
    wire INITOUT_n;
    
+   
    assign INT1_n = ~EN_INT1;
    assign INT2_n = ~EN_INT2;
    assign INT3_n = ~EN_INT3;
    assign INT6_n = INT_SCC_n;
 
-   assign P_HALT_n = XHALT_n | INIT_n;
-   assign P_RESET_n = INIT_n;
-   assign INITOUT_n = INIT_n;
-   
+   //assign P_HALT_n = ~(XHALT_n & INIT_n) ? 1'b0 : 1'bz;
+   assign (strong0, highz1) P_HALT_n = XHALT_n & INIT_n;
+   //assign P_RESET_n = ~INIT_n ? 1'b0 : 1'bz;
+   assign (strong0, highz1) P_RESET_n = INIT_n;
+   //assign INITOUT_n = ~INIT_n ? 1'b0 : 1'bz;
+   assign (strong0, highz1) INITOUT_n = INIT_n;
 
    // -------------------------
 //   wire [15:0] IOD;
@@ -266,14 +348,14 @@ assign AS = ~PX_AS_n;
 		    .S(H1),
 		    .R(H0),
 		    .Q(C50),
-		    .Q_n(C50_n));
+		    .Q_n(C50_n), .RESET_n(1'b1));
 
    ttl_74F74 u201_a(.D(C100_n),
 		    .CLK(C50),
 		    .S(H1),
 		    .R(H0),
 		    .Q(C100),
-		    .Q_n(C100_n));
+		    .Q_n(C100_n), .RESET_n(1'b1));
 
    assign #50 as_d = AS;
    
@@ -283,35 +365,35 @@ assign AS = ~PX_AS_n;
 //		    .R(AS),
  .R(as_d),
 		    .Q(C_S3),
-		    .Q_n(C_S3_n));
+		    .Q_n(C_S3_n), .RESET_n(P_RESET_n));
 
    ttl_74F74 u204_a(.D(C_S3),
 		    .CLK(C100_n),
 		    .S(H1),
 		    .R(AS),
 		    .Q(C_S5),
-		    .Q_n(C_S5_n));
+		    .Q_n(C_S5_n), .RESET_n(P_RESET_n));
    
    ttl_74F74 u205_a(.D(C_S5),
 		    .CLK(C100_n),
 		    .S(H1),
 		    .R(AS),
 		    .Q(C_S7),
-		    .Q_n());
+		    .Q_n(), .RESET_n(P_RESET_n));
 
    ttl_74F74 u203_b(.D(VALID),
 		    .CLK(C100),
 		    .S(H1),
 		    .R(EN_S4),
 		    .Q(C_S4),
-		    .Q_n(C_S4_n));
+		    .Q_n(C_S4_n), .RESET_n(P_RESET_n));
    
    ttl_74F74 u204_b(.D(C_S4),
 		    .CLK(C100),
 		    .S(H1),
 		    .R(EN_S4),
 		    .Q(C_S6),
-		    .Q_n(C_S6_n));
+		    .Q_n(C_S6_n), .RESET_n(P_RESET_n));
 
 
    ttl_74F74 u208_a(.D(P_DTACK_n),
@@ -319,14 +401,14 @@ assign AS = ~PX_AS_n;
 		    .S(H1),
 		    .R(H0),
 		    .Q(ENDS6_n),
-		    .Q_n(ENDS6));
+		    .Q_n(ENDS6), .RESET_n(P_RESET_n));
 
    ttl_74F74 u208_b(.D(ENDS6_n),
 		    .CLK(C100_n),
 		    .S(H1),
 		    .R(H0),
 		    .Q(ENDS7_n),
-		    .Q_n(ENDS7));
+		    .Q_n(ENDS7), .RESET_n(P_RESET_n));
 
    wire DIS_n;
 
@@ -339,9 +421,65 @@ assign AS = ~PX_AS_n;
 
    assign P1_MRWC_n = ~(~P1_MWTC_n | ~P1_MRDC_n);
 
+/* -----\/----- EXCLUDED -----\/-----
    wire P1_A18_n, P1_A19_n;
    assign P1_A18_n = 1;
    assign P1_A19_n = 1;
+ -----/\----- EXCLUDED -----/\----- */
+pullup(P1_A0_n);
+pullup(P1_A1_n);
+pullup(P1_A2_n);
+pullup(P1_A3_n);
+pullup(P1_A4_n);
+pullup(P1_A5_n);
+pullup(P1_A6_n);
+pullup(P1_A7_n);
+pullup(P1_A8_n);
+pullup(P1_A9_n);
+pullup(P1_A10_n);
+pullup(P1_A11_n);
+pullup(P1_A12_n);
+pullup(P1_A13_n);
+pullup(P1_A14_n);
+pullup(P1_A15_n);
+pullup(P1_A16_n);
+pullup(P1_A17_n);
+pullup(P1_A18_n);
+pullup(P1_A19_n);
+pullup(P1_BCLK_n);
+pullup(P1_BHEN_n);
+pullup(P1_BPRN_n);
+pullup(P1_BPRO_n);
+pullup(P1_BREQ_n);
+pullup(P1_BUSY_n);
+pullup(P1_CBRQ_n);
+pullup(P1_INIT_n);
+pullup(P1_IORC_n);
+pullup(P1_IOWC_n);
+pullup(P1_MRDC_n);
+pullup(P1_MRWC_n);
+pullup(P1_MWRC_n);
+pullup(P1_MWTC_n);
+pullup(P1_WRDC_n);
+pullup(P1_XACK_n);
+pulldown(P1_A12_N);
+pulldown(P1_D0);
+pulldown(P1_D1);
+pulldown(P1_D2);
+pulldown(P1_D3);
+pulldown(P1_D4);
+pulldown(P1_D5);
+pulldown(P1_D6);
+pulldown(P1_D7);
+pulldown(P1_D8);
+pulldown(P1_D9);
+pulldown(P1_D10);
+pulldown(P1_D11);
+pulldown(P1_D12);
+pulldown(P1_D13);
+pulldown(P1_D14);
+pulldown(P1_D15);
+   
    
    pal20L10_u212 u212(.I0(P1_A18_n),
 		      .I1(P1_A19_n),
@@ -364,7 +502,7 @@ assign AS = ~PX_AS_n;
 		      .O6(PX_UDS_n),
 		      .O7(P1_XACK_n),
 		      .O8(CE_BYTE_n),
-		      .O9(CE_WORD_n));
+		      .O9(CE_WORD_n), .RESET_n(P_RESET_n));
 
    ttl_74F374 u207(.D1(ENDS6),
 		   .D2(1'b1),
@@ -386,8 +524,10 @@ assign AS = ~PX_AS_n;
 		   .OE(1'b0));
 
 //temp - disable refresh
-wire REN_n = 1'b1;
-wire XEN_n = 1'b1;
+wire REN_n;
+wire XEN_n;
+   assign REN_n = 1'b1;
+   assign XEN_n = 1'b1;
 //to avoid a warning from cver, dummy outputs
 wire XEN_n_IGNORED;
 wire REN_n_IGNORED;
@@ -412,7 +552,11 @@ wire REN_n_IGNORED;
 		     .O2(P_BR_n),
 		     .O3(P_BACK_n),
 		     .CLK(C100),
-		     .OE_n(1'b0));
+		     .OE_n(1'b0), .RESET_n(P_RESET_n));
+   `ifdef DEBUG_SUSKA
+   always @(posedge C100) $display("C100 asserts - u213 inputs are SYSB=%x BEN_n=%x SACK_n=%x SAS_n=%x P_BG_n=%x XREQ=%x RREQ_n=%x SDS_n=%x PX_AS_n=%x PX_FC1=%x",
+				   SYSB, BEN_n, SACK_n, SAS_n, P_BG_n, XREQ_n, RREQ_n, SDS_n, PX_AS_n, PX_FC1);
+   `endif
 
    // Timeout counter
    ttl_74LS393 u209(.A(T_n),
@@ -449,7 +593,7 @@ wire REN_n_IGNORED;
 		      .O8(T_n),
 		      .O9(TIMEOUT_n),
 		      .CLK(C100),
-		      .OE_n(1'b0));
+		      .OE_n(1'b0), .RESET_n(P_RESET_n));
 
    // Refresh counter
    ttl_74S491 u210(.D0(L),
@@ -473,7 +617,7 @@ wire REN_n_IGNORED;
 		   .Q8_n(P_A9),
 		   .Q9_n(P_A10),
 		   .CLK(REN_n),
-		   .OE(REN_n));
+		   .OE_n(REN_n));
 		   
 		   
    // -------------------
@@ -494,7 +638,7 @@ wire REN_n_IGNORED;
 		     .Y2(P_D2),
 		     .Y3(P_D3),
 		     .CK(WR_CXL_n),
-		     .OE_n(RD_CXL_n));
+		     .OE_n(RD_CXL_n), .RESET_n(P_RESET_n));
 
    ttl_25LS2518 u301(.D0(P_D8),
 		     .D1(P_D9),
@@ -509,7 +653,7 @@ wire REN_n_IGNORED;
 		     .Y2(P_D10),
 		     .Y3(P_D11),
 		     .CK(WR_CXU_n),
-		     .OE_n(RD_CXU_n));
+		     .OE_n(RD_CXU_n), .RESET_n(P_RESET_n));
 
    ttl_74F257 u302(.A1(CXU0),
 		   .A2(CXU1),
@@ -525,6 +669,10 @@ wire REN_n_IGNORED;
 		   .Y4(),
 		   .B(PX_FC2),
 		   .OE_n(1'b0));
+
+   wire [2:0] p_cx;
+   assign p_cx = {cx_a2, cx_a1, cx_a0};
+   
 
    // Segment map
    wire [11:0] sm_addr;
@@ -571,9 +719,9 @@ wire REN_n_IGNORED;
 		      .id(4'h4));
 
    wire [11:0] pm_addr;
-   assign pm_addr = {IA22,IA21,IA20,IA19,IA18,IA17,IA16,IA23,P_A14,P_A13,P_A12,P_A11};
+   assign pm_addr = {IA23,IA22,IA21,IA20,IA19,IA18,IA17,IA16,P_A14,P_A13,P_A12,P_A11};
 
-   tri1 VALID, PROT5, PROT4, PROT3, PROT2, PROT1, PROT0, TYPE2, TYPE1, TYPE0, ACC, MOD;
+   wire VALID, PROT5, PROT4, PROT3, PROT2, PROT1, PROT0, TYPE2, TYPE1, TYPE0, ACC, MOD;
 
    // Page Map
    ttl_2168_sram u305(.A0(P_A11),
@@ -623,7 +771,7 @@ wire REN_n_IGNORED;
 		       MA15,MA14,MA13,MA12,MA11,11'b0 };
 
    wire [22:0] ia_addr;
-   assign ia_addr = { IA22,IA21,IA20,IA19,IA18,IA17,IA16, 16'b0 };
+   assign ia_addr = { IA23,IA22,IA21,IA20,IA19,IA18,IA17,IA16, 16'b0 };
 
    wire [31:0] pm_data;
    assign pm_data = { VALID, PROT5, PROT4, PROT3, 
@@ -733,14 +881,22 @@ wire REN_n_IGNORED;
 		    .S(H1),
 		    .R(H0),
 		    .Q(LTYPE0),
-		    .Q_n());
+		    .Q_n(), .RESET_n(P_RESET_n));
 
    ttl_74F74 u312_b(.D(TYPE1),
 		    .CLK(C_S4),
 		    .S(H1),
 		    .R(H0),
 		    .Q(LTYPE1),
-		    .Q_n());
+		    .Q_n(), .RESET_n(P_RESET_n));
+`ifdef DEBUG_SUSKA
+/* -----\/----- EXCLUDED -----\/-----
+   always @(posedge C100) $display("C100 asserts - u312a/b inputs are TYPE0=%x TYPE1=%x C_S4=%x",
+				   TYPE0, TYPE1, C_S4);
+ -----/\----- EXCLUDED -----/\----- */
+   always @(posedge C_S4) $display("C_S4 asserts - u312a/b inputs are TYPE0=%x TYPE1=%x C_S4=%x",
+				   TYPE0, TYPE1, C_S4);
+   `endif
 
    pal16R4_u316 u316(.D0(TYPE0),
 		     .D1(TYPE1),
@@ -759,7 +915,7 @@ wire REN_n_IGNORED;
 		     .O2(P_BACK_n),
 		     .O3(C_S5),
 		     .CLK(C_S5),
-		     .OE_n(C_S6_n));
+		     .OE_n(C_S6_n), .RESET_n(P_RESET_n));
 
    wire WR_PMAP0X_n;
 //   assign WR_PMAP0X_n = ~(~C_S6_n | ~WR_PMAP0L_n);
@@ -913,6 +1069,10 @@ wire REN_n_IGNORED;
 		   .Q5(),
 		   .Q6(P_SPROG_n),
 		   .Q7(P_VPA_n));
+   `ifdef DEBUG_SUSKA
+   always @(posedge C100) $display("(Comb) C100 asserts - u321 inputs are PX_FC0=%x PX_FC0=%x PX_FC0=%x PX_AS_n=%x P_BACK_n=%x",
+				   PX_FC0, PX_FC1, PX_FC2, PX_AS_n, P_BACK_n);
+   `endif
 
    ttl_74F138 u322(.A0(P_A1),
 		   .A1(P_A2),
@@ -980,8 +1140,8 @@ wire REN_n_IGNORED;
 		   .Q6(),
 		   .Q7(WR_ENABLE_n));
 
-   always @(negedge RD_ENABLE_n) $display("RD_ENABLE_n asserts");
-   always @(negedge WR_ENABLE_n) $display("WR_ENABLE_n asserts; data %x", p_databus);
+   always @(negedge RD_ENABLE_n) $display("RD_ENABLE_n asserts (P_A1=%x P_A2=%x RW=%x IODS_n=%x P_MMU_n=%x P_A3=%x)", P_A1, P_A2, RW, IODS_n, P_MMU_n, P_A3);
+   always @(negedge WR_ENABLE_n) $display("WR_ENABLE_n asserts ; data %x (P_A1=%x P_A2=%x RW=%x IODS_n=%x P_MMU_n=%x P_A3=%x)", p_databus, P_A1, P_A2, RW, IODS_n, P_MMU_n, P_A3);
    always @(negedge BOOT_n) $display("BOOT_n asserts");
    always @(posedge BOOT_n) $display("BOOT_n deasserts");
 
@@ -1402,7 +1562,7 @@ wire REN_n_IGNORED;
 		    .Q(x_as),
 		    .Q_n(),
 		    .S(H1),
-		    .R(C_S5_n));
+		    .R(C_S5_n), .RESET_n(P_RESET_n));
 
    wire RASEN_n, P2_RAS_n, P2_WEL_n, P2_WEU_n;
 
@@ -1660,7 +1820,7 @@ wire REN_n_IGNORED;
 		    .Q1(P_A16),
 		    .Q2(P_A17),
 		    .Q3(P_A18),
-		    .Q4(P_A191),
+		    .Q4(P_A19),
 		    .Q5(P_A20),
 		    .Q6(P_A21),
 		    .Q7(P_A22),
@@ -1741,7 +1901,7 @@ wire REN_n_IGNORED;
 		    .S(),
 		    .R(),
 		    .Q(d2),
-		    .Q_n());
+		    .Q_n(), .RESET_n(P_RESET_n));
    
    assign SYSB = TYPE1 & C_S4;
 
@@ -1773,7 +1933,7 @@ wire REN_n_IGNORED;
 		    .S(SYSB),
 		    .R(H),
 		    .Q(DATAEN_n),
-		    .Q_n(qb));
+		    .Q_n(qb), .RESET_n(P_RESET_n));
 
     assign d = ~(qb & RREQ_n);
 
@@ -1782,7 +1942,7 @@ wire REN_n_IGNORED;
 		    .S(SYSB),
 		    .R(BEN_n),
 		    .Q(BEN_n),
-		     .Q_n());
+		     .Q_n(), .RESET_n(P_RESET_n));
    
    assign XMWTC_n = ~(~MWTC_n & ~ENDS6);
    assign XIOWC_n = ~(~IOWC_n & ~ENDS6);
@@ -1814,7 +1974,8 @@ wire REN_n_IGNORED;
 		     
    // -------------------
 
-   reg [7:0]   diag_reg;
+/* -----\/----- EXCLUDED -----\/-----
+   reg [7:0]   diag_reg; // 74LS273
 
    always @(posedge WR_DIAG_n or negedge P_RESET_n)
      if (WR_DIAG_n)
@@ -1822,10 +1983,67 @@ wire REN_n_IGNORED;
      else
        if (~P_RESET_n)
 	 diag_reg <= 8'b0;
-  
+ -----/\----- EXCLUDED -----/\----- */  
 
    wire [7:0]  leds;
-   assign leds = diag_reg;
+  
+   // System Enable Reg.
+   ttl_74LS273 u802(.D1(IOD0),
+		    .D2(IOD1),
+		    .D3(IOD2),
+		    .D4(IOD3),
+		    .D5(IOD4),
+		    .D6(IOD5),
+		    .D7(IOD6),
+		    .D8(IOD7),
+		    .Q1(leds[0]),
+		    .Q2(leds[1]),
+		    .Q3(leds[2]),
+		    .Q4(leds[3]),
+		    .Q5(leds[4]),
+		    .Q6(leds[5]),
+		    .Q7(leds[6]),
+		    .Q8(leds[7]),
+		    .CK(WR_DIAG_n),
+		    .CR_n(P_RESET_n));
+   
+   //assign leds = diag_reg;
+   always @(leds) begin
+      $display("Leds are now %x", ~leds);
+      case (~leds)
+	8'hff:$display(" => L_RESET");
+	8'h00:$display(" => L_RUNNING");
+	8'h01:$display(" => L_INITIAL");
+	8'h02:$display(" => L_USERDOG");
+	8'h03:$display(" => L_GOTMEM");
+	8'h04:$display(" => (initial led test only)");
+	8'h07:$display(" => L_AFTERDIAG");
+	8'h08:$display(" => L_HEARTBEAT");
+	8'h10:$display(" => (initial led test only)");
+	8'h11:$display(" => L_CONTEXT");
+	8'h20:$display(" => (initial led test only)");
+	8'h21:$display(" => L_SM_CONST");
+	8'h23:$display(" => L_SM_DATA");
+	8'h22:$display(" => L_SM_ADDR");
+	8'h31:$display(" => L_PM_CONST");
+	8'h33:$display(" => L_PM_DATA");
+	8'h32:$display(" => L_PM_ADDR");
+	8'h40:$display(" => L_PROM");
+	8'h50:$display(" => L_UART");
+	8'h70:$display(" => L_M_MAP");
+	8'h71:$display(" => L_M_CONST");
+	8'h72:$display(" => L_M_ADDR");
+	8'h7F:$display(" => L_PARITY");
+	8'h80:$display(" => (initial led test only)");
+	8'h81:$display(" => L_TIMER");
+	8'hF1:$display(" => L_SETUP_MEM");
+	8'hF2:$display(" => L_SETUP_MAP");
+	8'hF3:$display(" => L_SETUP_FB");
+	8'hF4:$display(" => L_SETUP_KEYB");
+	default: $display(" => unknown pattern!!!");
+      endcase
+      //$flushlog;
+   end
 
 
    // -------------------

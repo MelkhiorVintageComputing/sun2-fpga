@@ -1,0 +1,35 @@
+diff -urbBw /tmp/SUSKA/68K10/wf68k10_exception_handler.vhd /home/dolbeau5/SUSKA/68K10/wf68k10_exception_handler.vhd
+--- /tmp/SUSKA/68K10/wf68k10_exception_handler.vhd	2021-12-20 17:17:58.000000000 +0100
++++ /home/dolbeau5/SUSKA/68K10/wf68k10_exception_handler.vhd	2025-09-26 17:42:29.021585954 +0200
+@@ -179,7 +179,8 @@
+ signal TRAP_BKPT            : bit;
+ begin
+ 
+-    BUSY_EXH <= '1' when EX_STATE /= IDLE else '0';
++    BUSY_EXH <= '1' when EX_STATE = IDLE and NEXT_EX_STATE /= IDLE else
++                '1' when EX_STATE /= IDLE else '0';
+ 
+     IRQ_FILTER : process
+     -- This logic is intended to avoid spurious IRQs due
+diff -urbBw /tmp/SUSKA/68K10/wf68k10_top.vhd /home/dolbeau5/SUSKA/68K10/wf68k10_top.vhd
+--- /tmp/SUSKA/68K10/wf68k10_top.vhd	2021-12-20 17:17:58.000000000 +0100
++++ /home/dolbeau5/SUSKA/68K10/wf68k10_top.vhd	2025-09-26 17:40:59.257738576 +0200
+@@ -783,8 +783,8 @@
+ 
+     TRAP_AERR <= AERR when BUSY_EXH = '0' else '0'; -- No address error from the system during exception processing.
+ 
+-    USE_DFC <= '1' when OP_WB = MOVES and DATA_WR_MAIN = '1' else '0';
+-    USE_SFC <= '1' when OP_WB = MOVES and DATA_RD_MAIN = '1' else '0';
++    USE_DFC <= '1' when OP = MOVES and DATA_WR_MAIN = '1' else '0';
++    USE_SFC <= '1' when OP = MOVES and DATA_RD_MAIN = '1' else '0';
+ 
+     PC_LOAD <= PC_LOAD_EXH or PC_LOAD_MAIN;
+ 
+@@ -820,6 +820,7 @@
+     end process P_ADR_LATCHES;
+ 
+     FC_I <= FC_LATCH when BUS_BSY = '1' else
++            "110" when RESTORE_ISP_PC = '1' else -- During Reset for the first two long words
+             SFC when USE_SFC = '1' else
+             DFC when USE_DFC = '1' else
+             "111" when (DATA_RD = '1' or DATA_WR = '1') and CPU_SPACE = '1' else
