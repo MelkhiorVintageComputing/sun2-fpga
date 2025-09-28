@@ -24,10 +24,10 @@ module pal20X10_u211 (input I0,
 		      output O8,
 		      output O9,
 		      input  CLK,
-		      input OE_n);
+		      input OE_n, input RESET_n);
 
    wire c100, c200, por, sysb, sds, initin, ren, p_halt, as, tin;
-   reg q0=0, q1=0, q2=0, q3=0, q4=0, q5=0, rreq = 0, init = 0, t=0, timeout = 0;
+   reg q0=0, q1=0, q2=0, q3=0, q4=0, q5=0, rreq = 0, init = 1, t=0, timeout = 0;
    
    // c100 /c200 /por sysb /sds /initin notused /ren /p.halt /as tin gnd
    assign c100 = CLK;
@@ -103,6 +103,7 @@ module pal20X10_u211 (input I0,
 //	   tin * as
 
    always @(posedge c100)
+   
      begin
 	q0 <= q0 + por ^ // C400
 	      c200 * ~por;
@@ -122,8 +123,9 @@ module pal20X10_u211 (input I0,
 	q5 <= q5 + por ^ // C12800
 	      c200 * q0 * q1 * q2 * q3 * q4 * ~por;
 
-	rreq <= rreq * ~ren +
-		c200 * q0 * q1 * q2 * q3 * q4 * q5 * ~ren;
+	//rreq <= rreq * ~ren +
+	//	c200 * q0 * q1 * q2 * q3 * q4 * q5 * ~ren;
+	rreq <= 0; // neer request a refresh
 
 //	init <= init + por ^
 		//
@@ -131,13 +133,30 @@ module pal20X10_u211 (input I0,
 		//
 //		c200 * q0 * q1 * q2 * q3 * q4 * q5 * p_halt * ~sds * ~sysb * ~por;
 //temp
-	init <= (c200 * por);
+	//init <= (c200 * por);
+	init <= (init & por);
 	
 	t <= t * as ^
 	     c200 * q0 * q1 * q2 * q3 * q4 * as;
 	
 	timeout <= timeout * as +
 		   tin * as;
-     end
+     end // always @ (posedge c100)
+
+   always @(negedge RESET_n or posedge RESET_n)
+       begin
+	  q0 <= 0;
+	  q1 <= 0;
+	  q2 <= 0;
+	  q3 <= 0;
+	  q4 <= 0;
+	  q5 <= 0;
+	  rreq <= 0;
+	  t <= 0;
+	  timeout <= 0;
+/* -----\/----- EXCLUDED -----\/-----
+	  init = 0;
+ -----/\----- EXCLUDED -----/\----- */
+       end // if (~RESET_n)
 
 endmodule

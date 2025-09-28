@@ -22,11 +22,11 @@ module pal16R4_u316 (input D0,
 		     input  O3,
 
 		     input  CLK,
-		     input  OE_n);
+		     input  OE_n, input RESET_n);
 
    wire read, p_fc0, p_fc1, booten;
-   reg type0, type1, acc = 0, mod = 0;
-   wire c_s5c, c_s6, en, itype0, itype1, imod, iacc;
+   reg type0 = 0, type1 = 0, acc = 0, mod = 0;
+   wire c_s5c, c_s5, en, itype0, itype1, imod, iacc;
    wire dis, p_back;
    
    // c.s5c type1 type0 mod en read p.fc0 p.fc1 /booten gnd
@@ -44,17 +44,29 @@ module pal16R4_u316 (input D0,
 //   assign O0 = ~OE_n ? ~dis : 1'bz;
    assign O0 = ~dis;
    assign iacc = O1;
-//   assign Q0 = ~OE_n ? type1 : 1'bz;
-//   assign Q1 = ~OE_n ? type0 : 1'bz;
+   assign Q0 = ~OE_n ? type1 : 1'bz;
+   assign Q1 = ~OE_n ? type0 : 1'bz;
+   //assign Q0 = type1;
+   //assign Q1 = type0;
 // something seems broken for writing back mod/acc here...
-assign Q0 = 1'bz;
-assign Q1 = 1'bz;
+//assign Q0 = 1'bz;
+//assign Q1 = 1'bz;
    assign Q2 = ~OE_n ? mod : 1'bz;
    assign Q3 = ~OE_n ? acc : 1'bz;
+   //assign Q2 = mod;
+   //assign Q3 = acc;
    assign p_back = ~O2;
-   assign c_s6 = O3;
+   assign c_s5 = O3;
    
    always @(posedge c_s5c)
+     if (~RESET_n)
+       begin
+	  type1 <= 0;
+	  type0 <= 0;
+	  acc <= 0;
+	  mod <= 0;
+       end
+     else
      begin
 	type1 <= itype1; // write back
 

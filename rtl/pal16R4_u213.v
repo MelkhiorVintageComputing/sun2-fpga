@@ -20,7 +20,7 @@ module pal16R4_u213(input D0,
 		   output O2,
 		   output O3,
 		   input  CLK,
-		   input  OE_n);
+		   input  OE_n, input RESET_n);
 
    wire c100, sysb, ben, sack, sas, p_bg, xreq, rreq, sds;
    wire p_back, p_br, fc1, p_as;
@@ -48,9 +48,8 @@ module pal16R4_u213(input D0,
    assign O0 = p_back ? p_as : 1'bz;
 
 //temp
-//   assign p_back  = ren +
-//		    xen;
    assign p_back = 0;
+   //assign p_back  = ren + xen;
 
    assign p_br    = xreq * ~p_back +
 		    rreq * ~p_back;
@@ -61,6 +60,13 @@ module pal16R4_u213(input D0,
                  sack * xen * xreq;
 
    always @(posedge c100)
+     if (~RESET_n) begin
+	xen <= 0;
+	ren <= 0;
+	xberr <= 0;
+	xhalt <= 0;
+     end
+     else
      begin
 	xen <= ~xen * ~ren * p_bg * ~sas * ~rreq * sds +     // SET
                xen * sds;                                    // CLEAR
@@ -78,6 +84,7 @@ module pal16R4_u213(input D0,
 	xhalt <= sds * sysb +                           // SET ON MULTIBUS DEADLOCK
 		 rreq * ~ben * sysb +                   // SET ON REFRESH DEADLOCK
 		 xberr;                                 // XBERR PLUS ONE STATE
+	
    end
 
 endmodule

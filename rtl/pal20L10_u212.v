@@ -24,9 +24,9 @@ module pal20L10_u212(input I0,
 		      inout  O6,
 		      output O7,
 		      output O8,
-		      output O9);
+		      output O9, input RESET_n);
 
-   wire ce_word, ce_byte, pltop, p_wr, p_lds, p_uds, p1_xack, xeq;
+   wire ce_word, ce_byte, pltop, p_wr, p_lds, p_uds, p1_xack;
    wire p1_a18, p1_a19, p1_a0, p1_bhen,  p1_mrdc,  p1_mrwc;
    wire proterr, en_dvma, c_s7, parerr, mrdc;
    wire aen, iorc, xreq, xen;
@@ -58,6 +58,7 @@ module pal20L10_u212(input I0,
    assign O7 = xen ? ~p1_xack : 1'bz;
    assign O8 = ~ce_byte;
    assign O9 = ~ce_word;
+   
 
    assign ce_word = aen * p_lds +                 // CPU CYCLE R/W LOW BYTE/WORD
 		    aen * p_wr +                  // CPU WRITE
@@ -66,13 +67,14 @@ module pal20L10_u212(input I0,
    assign ce_byte = aen * ~p_lds * p_uds * ~p_wr + // CPU CYCLE (READ UPPER BYTE)
 		    xen * ~p_lds * p_uds;          // DVMA CYCLE (R/W UPPER BYTE)
 
-   assign pltop   = ~xen * mrdc +                  // NON_DVMA MRDC CYCLE
+   assign pltop = ~xen * mrdc +                  // NON_DVMA MRDC CYCLE
 		    ~xen * iorc +                  // NON_DVMA IODC CYCLE
 		    xen * p_wr;                    // DVMA WRITE CYCLE CONDITION
+/* -----\/----- EXCLUDED -----\/-----
 
    // ASSERTED ON DVMA CYCLES ONLY
    assign p_wr = p1_mrwc * ~p1_mrdc * ~c_s7 +  // SET
-		 p_wr * ~p1_mrdc;              // HOLD
+		    p_wr * ~p1_mrdc;              // HOLD
 
    // ASSERTED ON DVMA CYCLES ONLY
    assign p_lds = ~p1_a0 * xreq * xen +        // EVEN BYTE
@@ -83,17 +85,18 @@ module pal20L10_u212(input I0,
    assign p_uds = p1_a0 * xreq * xen +         // ODD BYTE
 		  p1_bhen * xreq * xen +       // WORD
 		  p_uds * p1_mrwc;             // HOLD
+ -----/\----- EXCLUDED -----/\----- */
+   assign p_wr = 0; // FIXME!!!!
+   assign p_lds = 0; // FIXME!!!!
+   assign p_uds = 0; // FIXME!!!!
+   
 
    // ASSERTED ON DVMA CYCLES ONLY
    assign p1_xack = c_s7 * p1_mrdc * ~proterr * ~parerr + // DVMA READ CYCLE
 		    c_s7 * p1_mrwc * ~p1_mrdc * ~proterr; // DVMA WRITE CYCLE
-
-   wire xreq_f;
    
-   assign xreq = en_dvma * ~p1_a19 * ~p1_a18 * p1_mrwc * ~aen * ~xen +  // SET
-		 xreq_f * p1_mrwc;                                      // HOLD
-
-   assign xreq_f = $time == 0 ? 0 : xreq;
-   
+   assign xreq = (~RESET_n) ? &'b0 :
+		    en_dvma * ~p1_a19 * ~p1_a18 * p1_mrwc * ~aen * ~xen +  // SET
+		    xreq * p1_mrwc;                                      // HOLD
 endmodule
 
