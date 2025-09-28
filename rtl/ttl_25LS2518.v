@@ -11,12 +11,17 @@ module   ttl_25LS2518(input D0,
 		      inout Y2,
 		      inout Y3,
 		      input  CK,
-		      input  OE_n);
+		      input  OE_n, input RESET_n);
 
    reg [3:0] r = 0;
 
    always @(posedge CK)
      r <= { D3, D2, D1, D0 };
+
+   always @(negedge RESET_n or posedge RESET_n)
+     begin
+	r <= 0;
+     end
 
    assign Y0 = ~OE_n ? r[0] : 1'bz;
    assign Y1 = ~OE_n ? r[1] : 1'bz;
