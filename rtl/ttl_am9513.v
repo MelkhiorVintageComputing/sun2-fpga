@@ -2,7 +2,14 @@
 // // Partial implementation of AMD 9513 timer module
 //
 
-module ttl_am9513 (inout [15:0] D,
+
+module ttl_am9513 (
+`ifdef SPLIT_DATA_BUS
+		   input [15:0] DIN,
+		   output [15:0] DOUT,
+`else
+		   inout [15:0] D,
+`endif
 		   input  CD_n,
 		   input  CS_n,
 		   input  RD_n,
@@ -35,7 +42,11 @@ module ttl_am9513 (inout [15:0] D,
    reg [15:0] cmd = 0;
 
    wire [15:0] data_in;
+`ifdef SPLIT_DATA_BUS
+   assign data_in = DIN;
+`else
    assign data_in = D;
+`endif
 
    wire [5:0] src;
    assign src = { SRC6, SRC5, SRC4, SRC3, SRC2, SRC1 };
@@ -55,7 +66,11 @@ module ttl_am9513 (inout [15:0] D,
    assign write = ~WR_n & ~CS_n;
 
    assign bus_out = CD_n ? status_out : data_out;
+`ifdef SPLIT_DATA_BUS
+   assign DOUT = bus_out;
+`else
    assign D = read ? bus_out : 16'bz;
+`endif
 
    reg [7:0] data_ptr = 0;
    reg [15:0] mm = 0;
@@ -190,13 +205,16 @@ ctr_mode[i] = 16'h0b00;
 		 end
 		    
 	     endcase
-	     
+`ifdef SPLIT_DATA_BUS
+	     cmd <= DIN;
+`else
 	     cmd <= D;
+`endif
 	  end
      end
 
-   always @(posedge read) $display("am9513: read cd_n %b; dout %x din %x (mm13=%b)", CD_n, bus_out, D, mm[13]);
-   always @(posedge write) $display("am9513: write cd_n %b; dout %x din %x (mm13=%b)", CD_n, bus_out, D, mm[13]);
+   always @(posedge read) $display("am9513: read cd_n %b; dout %x din %x (mm13=%b)", CD_n, bus_out, data_in, mm[13]);
+   always @(posedge write) $display("am9513: write cd_n %b; dout %x din %x (mm13=%b)", CD_n, bus_out, data_in, mm[13]);
 				    
    wire [15:0] ctr_mode_group, ctr_load_group, ctr_hold_group;
    assign ctr_mode_group = ctr_mode[group];
