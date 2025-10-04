@@ -205,7 +205,7 @@ WF68K10_TOP suska_68k10(
 .BERRn(BERRn),
 .RESET_INn(RESET_INn),
 .HALT_INn(HALT_INn),
-.AVECn(1'b0),
+.AVECn(1'b1),
 .IPLn({IPL2_n, IPL1_n, IPL0_n}),
 .DTACKn(DTACKn),
 .VPAn(VPAn),
