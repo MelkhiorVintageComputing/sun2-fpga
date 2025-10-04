@@ -113,11 +113,6 @@ module sun2_fpga(input 	       clk40,
 	  end
      end
 
-   wire [2:0] 			 cx_ctx2smap;
-   wire [7:0] 			 ia_smap2pmap;
-   wire [11:0] 			 ma_pmap2devices;
-   wire [11:0] 			 ps_pmap2devices;
-
    // match wire for the control/mmu space
    // can match early because they only depend on the P_A address
    wire 			 MATCH_CTX, MATCH_SMAP, MATCH_PMAP_PS, MATCH_PMAP_MA;
@@ -131,13 +126,9 @@ module sun2_fpga(input 	       clk40,
    assign MATCH_BERR    = (FC_CTRLLAYER) & (P_A[10:4] == 7'h0) & (P_A[3:1] == 3'h6);
    assign MATCH_SYSEN   = (FC_CTRLLAYER) & (P_A[10:4] == 7'h0) & (P_A[3:1] == 3'h7);
 
-   wire [23:0] 			 pa_forshow;
+   wire [23:0] 			 pa_forshow; // more readbable as a wave, no functional use
    assign pa_forshow = {1'b0, ma_pmap2devices, P_A[10:1], 1'b0};
-   
 
-   //wire BOOTEN_n;
-   //assign BOOTEN_n = ~(~BOOT_n & ~P_SPROG_n);
-   //assign rom_oe_n = ~(~RD_PROM_n | ~BOOTEN_n);
    wire 			 MATCH_PROM_BOOT;
    assign MATCH_PROM_BOOT  = ((FC_SPROG) & (~BOOT_n)); // at boot (bit from SYSEN): all Supervisor Program are from the PROM
 
@@ -146,35 +137,35 @@ module sun2_fpga(input 	       clk40,
    wire 			 RD;
    assign RD = (~P_UDS_n | ~P_LDS_n) & ~P_AS_n &  P_RW_n;
 
-   // MMU & control layers   
-
-   // Context register
+   // MMU & control layers
    wire [15:0] 			 ctx_out;
-   ctx_reg ctx(.CLK(CLK),
-	       .din(P_DIN),
-	       .USER_n(P_FC[2]),
-	       .WR(WR & MATCH_CTX & C_S4),
-	       .dout(ctx_out),
-	       .cx(cx_ctx2smap)
-	       );
+   wire [7:0] 			 ia_smap2pmap;
+   wire [11:0] 			 ma_pmap2devices;
+   wire [11:0] 			 ps_pmap2devices;
+
+   sun2_mmu mmu(.CLK(C100),
+		/* matching */
+		.MATCH_CTX(MATCH_CTX),
+		.MATCH_SMAP(MATCH_SMAP),
+		.MATCH_PMAP_PS(MATCH_PMAP_PS),
+		.MATCH_PMAP_MA(MATCH_PMAP_MA),
+		.WR(WR),
+		.RD(RD),
+		/* CPU signals */
+		.P_DIN(P_DIN),
+		.P_A(P_A),
+		.P_FC(P_FC),
+		/* timing signals */
+		.C_S4(C_S4),
+		.C_S6(C_S6),
+		/* MMU outputs */
+		.ctx_out(ctx_out),
+		.ia_smap2pmap(ia_smap2pmap),
+		.ma_pmap2devices(ma_pmap2devices),
+		.ps_pmap2devices(ps_pmap2devices)
+	    );
    
-   // Segment Map
-   smap_sram smap(.CLK(CLK),
-		  .idx({P_A[23:15],cx_ctx2smap}),
-		  .WR(WR & MATCH_SMAP & C_S4),
-		  .ia_in(P_DIN[7:0]),
-		  .ia_out(ia_smap2pmap)
-		  );
-   // Page Map
-   pmap_sram pmap(.CLK(CLK),
-		  .idx({ia_smap2pmap,P_A[14:11]}),
-		  .WR_ma(WR & MATCH_PMAP_MA & C_S6),
-		  .WR_ps(WR & MATCH_PMAP_PS & C_S6),
-		  .ma_in(P_DIN[11:0]),
-		  .ps_in(P_DIN[15:4]),
-		  .ma_out(ma_pmap2devices),
-		  .ps_out(ps_pmap2devices)
-		  );
+   /* split the 12 protection/status bits by name */
    wire VALID, PROT5, PROT4, PROT3, PROT2, PROT1, PROT0, ACC, MOD;
    wire [2:0] TYPE;
    
