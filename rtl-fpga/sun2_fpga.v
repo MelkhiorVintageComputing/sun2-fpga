@@ -241,6 +241,7 @@ module sun2_fpga(input 	       clk40,
 		   .dout(sys_out),
 		   .CLR_n(POR_n)
 		   );
+   /* split the 8 system bits by name */
    wire 			 EN_PAR, EN_INT1, EN_INT2, EN_INT3, EN_PARERR, EN_DVMA, EN_INT, BOOT_n;
    assign EN_PAR    = sys_out[0];
    assign EN_INT1   = sys_out[1];
@@ -251,7 +252,7 @@ module sun2_fpga(input 	       clk40,
    assign EN_INT    = sys_out[6];
    assign BOOT_n    = sys_out[7];
 
-   // info
+   // output readable info when we change sysen
    always @(sys_out) begin
       $display("System Enable Register updated");
       $display("\tEnable Parity Generation: %x", EN_PAR);
@@ -265,6 +266,7 @@ module sun2_fpga(input 	       clk40,
    end // always @ (sys_out)
 
    // PROM (two access modes: at boot using P_A, or mapped but matched through MA), read-only
+   // handled by the two match signals in the bus section, the PROM itself always output whatever is addressed
    wire [15:0] 			 prom_out;
    bootrom bootrom(.CLK(CLK),
 		   .idx({1'b0, P_A[14:1]}),
@@ -286,12 +288,10 @@ module sun2_fpga(input 	       clk40,
    assign MATCH_RTC      = (FC_GENERAL) & (TYPE == 3'h1) & (ma_pmap2devices == 12'h007) & C_S6; // not in prime
    
    assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:8] == 4'h0) & C_S6; // "physically" installed
-   assign MATCH_MEMX     = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:0] < 12'hE00) & C_S6; // addressable, for DTACK (so auto-sizing works)
+   assign MATCH_MEMX     = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:0] < 12'hE00) & C_S6; // addressable, for DTACK (so auto-sizing works, as it uses "wrong values" rather than bus error in the Rev R ROM)
 
    wire [15:0] 			 timer_out;
-   wire 			 FOUT, timer_int[5:1];
-   
-   
+   wire 			 FOUT, timer_int[5:1]; /* FOUT for completeness, not et implemented in the TTL code */
    ttl_am9513 timer (
 		   .DIN(P_DIN),
 		   .DOUT(timer_out),
@@ -320,6 +320,8 @@ module sun2_fpga(input 	       clk40,
 		   .OUT5(timer_int[5])
 		   );
 
+   /* the actual memory. For now it's just synchronous RAM */
+   /* should probably be moved to some "real" RAM with variable timings, which will require changing the bus mux below */
    wire [15:0] 			 mem_out;
    sram_sync_16bits_bytewritable #(.IDX_WIDTH(18)) mainmem (.CLK(C100),
 							  .idx({ma_pmap2devices[7:0],P_A[10:1]}),
@@ -328,14 +330,13 @@ module sun2_fpga(input 	       clk40,
 							  .din(P_DIN),
 							  .dout(mem_out)
 							  );
-
+   /* serial port */
    wire [7:0] 			 serial_out;
    wire 			 serial_en;
    wire 			 serial_int_n; // FIXME: DOME
-
    wire 			 TxDA, TxDA_EN;
-   
-   tolog tolog(.CLK(C100), .TxDA(TxDA));
+  
+   tolog tolog(.CLK(C100), .TxDA(TxDA)); // so we can trace only TxDA in the VCD, pulseview doesn't like too many signals
    
    SCC8530_TOP serial(
 		      // System controls:
@@ -398,6 +399,7 @@ module sun2_fpga(input 	       clk40,
    
    
    // Answering the CPU
+   // bus muxer. CPU has priority via DATA_EN, otherwise whomever is matched own the bus
    assign P_DOUT = DATA_EN         ? P_DIN : // loopback
 		   MATCH_CTX       ? ctx_out :
 		   MATCH_SMAP      ? {8'h0, ia_smap2pmap} :
@@ -413,64 +415,25 @@ module sun2_fpga(input 	       clk40,
 		   MATCH_SERIAL    ? {serial_out, 8'h0} :
 		   16'hDEAD;
 
-`ifdef DONTDOIT
-   // DTACK handling
-   // DTACK is asserted 1 cycle when ack_ctr reach 1
-   reg [3:0] 	       ack_ctr;
-   localparam ACK_CTR_VALID = 4'h1;
-   localparam ACK_CTR_RESET = 4'h0;
-   
-   reg 				 need_dtack;
-   
-   initial
-     begin
-	ack_ctr = 4'h0; // FIXME
-	need_dtack = 1'b0; // FIXME
-     end;
-				 
-   assign P_DTACK_n = (need_dtack & (ack_ctr == ACK_CTR_VALID)) ? 1'b0 : 1'b1;
-   always @(posedge CLK)
-     begin
-	if  (ack_ctr == ACK_CTR_VALID) need_dtack <= 1'b0;
-	if  (ack_ctr >  ACK_CTR_RESET) ack_ctr <= ack_ctr - 1;
-	if ((ack_ctr == ACK_CTR_RESET) & (~P_AS_n) & (P_RW_n)) // new read cycle
-	  begin
-	     need_dtack <= 1;
-	     // FC==3 devices uses P_A, so the match is valid early, we might need to wait if they are dependent on another device
-	     if (MATCH_CTX | MATCH_IDPROM | MATCH_SYSEN | MATCH_BERR | MATCH_PROM_BOOT) ack_ctr <= ACK_CTR_VALID; // address is already valid, we can ACK on the next clock
-	     if (MATCH_SMAP) ack_ctr <= ACK_CTR_VALID; // ctx isn't dependent on the address and is already valid
-	     if (MATCH_PMAP_PS | MATCH_PMAP_MA) ack_ctr <= ACK_CTR_VALID + 1; // we need another cycle for IA to become valid
-	     // FC !=3 devices ues MA, so the match is valid late
-	     if (MATCH_TIMER) ack_ctr <= ACK_CTR_VALID + 2; // physically mapped devices need another cycle for the MA to be valid
-	  end;
-	if ((ack_ctr == ACK_CTR_RESET) & (~P_AS_n) & (~P_RW_n) & (~P_LDS_n | ~P_UDS_n)) // new write cycle
-	  begin
-	     need_dtack <= 1;
-	     // FC==3 devices uses P_A, so the match is valid early, we might need to wait if they are dependent on another device
-	     if (MATCH_CTX | MATCH_SYSEN | MATCH_DIAG) ack_ctr <= ACK_CTR_VALID; // address is already valid, we can ACK on the next clock
-	     if (MATCH_SMAP) ack_ctr <= ACK_CTR_VALID; // ctx isn't dependent on the address and is already valid
-	     if (MATCH_PMAP_PS | MATCH_PMAP_MA) ack_ctr <= ACK_CTR_VALID + 1; // we need another cycle for IA to become valid
-	     // FC !=3 devices ues MA, so the match is valid late
-	     if (MATCH_TIMER) ack_ctr <= ACK_CTR_VALID + 2; // physically mapped devices need another cycle for the MA to be valid
-	  end;
-     end // always @ (CLK)
-`else // !`ifdef DONTDOIT
+   // DTACK generator. has knowledge of timings for all devices
+   // For memory this will need updating if we use "real" (variable-timing) memory
    assign P_DTACK_n = ~(
+			/* reads */
 			( P_RW_n & C_S4 & (MATCH_CTX | MATCH_IDPROM | MATCH_SYSEN | MATCH_BERR | MATCH_PROM_BOOT)) | // entering S4, quick devices
 			( P_RW_n & C_S4 & (MATCH_SMAP)) |  // entering S4, quick devices (CTX is 1 clock but went valid after being written, not affected by P_A)
 			( P_RW_n & C_S6 & (MATCH_PMAP_PS | MATCH_PMAP_MA)) |  // entering S6, physical map needed an extra cycle
 			( P_RW_n & C_S8 & (MATCH_TIMER | MATCH_PROM | MATCH_MEMX | MATCH_SERIAL)) | // entering S8, devices going through the MMU
-
+			/* writes */
 			(~P_RW_n & C_S4 & (MATCH_CTX | MATCH_SYSEN | MATCH_DIAG)) | // entering S4, quick devices
 			(~P_RW_n & C_S4 & (MATCH_SMAP)) |  // entering S4, quick devices (CTX is 1 clock but went valid after being written, not affected by P_A)
 			(~P_RW_n & C_S6 & (MATCH_PMAP_PS | MATCH_PMAP_MA)) |  // entering S6, physical map needed an extra cycle
 			(~P_RW_n & C_S8 & (MATCH_TIMER | MATCH_MEMX | MATCH_SERIAL)) | // entering S8, devices going through the MMU
 			
 			1'b0);
-`endif
    
    
    // LEDS
+   // as for the real thing, used for debugging (in simulation)
    always @(leds) begin
       $display("Leds are now %x", ~leds);
       case (~leds)
@@ -521,10 +484,6 @@ module sun2_fpga(input 	       clk40,
    assign C100 = clk10;
    assign C100_n = ~clk10;
 
-   // interrupts encoding
-
-   
-
    // interrupts
    wire 	       INT7_n, INT6_n, INT5_n, INT4_n, INT3_n, INT2_n, INT1_n;
    // interrupts encoding
@@ -534,7 +493,6 @@ module sun2_fpga(input 	       clk40,
 			  .EO_n(), // unused output
 			  .GS_n() // unused output
 			   );
-   
    assign INT1_n = ~EN_INT1;
    assign INT2_n = ~EN_INT2;
    assign INT3_n = ~EN_INT3;
