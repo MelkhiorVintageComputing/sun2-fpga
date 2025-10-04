@@ -407,7 +407,7 @@ module sun2_fpga(input 	       clk40,
 		   MATCH_PMAP_MA   ? {4'h0, ma_pmap2devices} :
 		   MATCH_SYSEN     ? {8'h0, sys_out} :
 		   MATCH_BERR      ? {8'h0, berr_out} :
-		   MATCH_IDPROM    ? {8'h0, idprom_out} :
+		   MATCH_IDPROM    ? {idprom_out, 8'h0} :
 		   MATCH_PROM_BOOT ? prom_out :
 		   MATCH_PROM      ? prom_out :
 		   MATCH_TIMER     ? timer_out :
