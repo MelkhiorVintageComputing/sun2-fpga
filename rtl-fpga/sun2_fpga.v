@@ -1,0 +1,556 @@
+`timescale 1ns/1ns
+
+`define SPLIT_DATA_BUS 1
+
+`include "ttl_74F151.v"
+`include "ttl_74LS148.v"
+`include "ttl_am9513.v"
+`include "tolog.v"
+
+module sun2_fpga(input 	       clk40,
+		 output        C100,
+		 output        P_VPA_n,
+		 output        P_BERR_n,
+		 output        P_DTACK_n,
+		 output        P_BR_n,
+		 output        P_BGACK_n,
+
+		 inout 	       P_RESET_n, // FIXME
+		 inout 	       P_HALT_n, // FIXME
+
+		 input 	       P_AS_n,
+		 input 	       P_RW_n,
+		 input 	       P_UDS_n,
+		 input 	       P_LDS_n,
+		 input 	       P_BG_n,
+		 input 	       BUS_EN,
+
+		 output        IPL2_n,
+		 output        IPL1_n,
+		 output        IPL0_n,
+
+		 input [2:0]   P_FC,
+   
+		 input [23:1]  P_A,
+
+		 input [15:0]  P_DIN,
+		 output [15:0] P_DOUT,
+		 input DATA_EN
+		   );
+   // 180° clock
+   wire 	       C100_n;
+   
+   pullup(P_BR_n); // FIXME
+   pullup(P_BGACK_n);
+
+   pullup(P_RESET_n); // FIXME
+   pullup(P_HALT_n);
+   
+   pullup(P_AS_n); // FIXME
+   pullup(P_RW_n);
+   pullup(P_UDS_n);
+   pullup(P_LDS_n);
+   pullup(P_BG_n);
+
+   wire CLK;
+   assign CLK = C100;
+
+   reg 	POR_n;
+   initial
+     begin
+	POR_n = 1'b1;
+	#5 POR_n = 1'b0;
+	#2000 POR_n = 1'b1;
+     end
+   assign P_RESET_n = POR_n; // FIXME
+   assign P_HALT_n = POR_n;
+
+   // layers shortcuts
+   wire FC_CTRLLAYER;
+   wire FC_CPUCYCLE;
+   assign FC_CTRLLAYER = (P_FC == 3'h3);
+   assign FC_CPUCYCLE  = (P_FC == 3'h7);
+   assign FC_SPROG     = (P_FC == 3'h6);
+   assign FC_GENERAL   = ~FC_CTRLLAYER & ~FC_CPUCYCLE;
+
+   assign P_VPA_n = ~(FC_CPUCYCLE);
+
+   // P_AS_n timing
+   reg C_S3, C_S5, C_S7, C_S9;
+   always @(negedge C100)
+     begin
+	if (~P_AS_n)        C_S3 <= 1'b1;
+	if (~P_AS_n & C_S3) C_S5 <= 1'b1;
+	if (~P_AS_n & C_S5) C_S7 <= 1'b1;
+	if (~P_AS_n & C_S7) C_S9 <= 1'b1;
+	if ( P_AS_n)
+	  begin
+	     C_S3 <= 1'b0;
+	     C_S5 <= 1'b0;
+	     C_S7 <= 1'b0;
+	     C_S9 <= 1'b0;
+	  end
+     end
+   reg C_S4, C_S6, C_S8, C_S10, C_S12, C_S14, TIMEOUT;
+   always @(posedge C100)
+     begin
+	if (~P_AS_n & C_S3) C_S4 <= 1'b1;
+	if (~P_AS_n & C_S4) C_S6 <= 1'b1;
+	if (~P_AS_n & C_S6) C_S8 <= 1'b1;
+	if (~P_AS_n & C_S8) C_S10 <= 1'b1;
+	if (~P_AS_n & C_S10) C_S12 <= 1'b1;
+	if (~P_AS_n & C_S12) C_S14 <= 1'b1;
+	if (~P_AS_n & C_S14) TIMEOUT <= 1'b1;
+	if ( P_AS_n)
+	  begin
+	     C_S4 <= 1'b0;
+	     C_S6 <= 1'b0;
+	     C_S8 <= 1'b0;
+	     C_S10 <= 1'b0;
+	     C_S12 <= 1'b0;
+	     C_S14 <= 1'b0;
+	     TIMEOUT <= 1'b0;
+	  end
+     end
+
+   wire [2:0] 			 cx_ctx2smap;
+   wire [7:0] 			 ia_smap2pmap;
+   wire [11:0] 			 ma_pmap2devices;
+   wire [11:0] 			 ps_pmap2devices;
+
+   // match wire for the control/mmu space
+   // can match early because they only depend on the P_A address
+   wire 			 MATCH_CTX, MATCH_SMAP, MATCH_PMAP_PS, MATCH_PMAP_MA;
+   wire 			 MATCH_IDPROM, MATCH_DIAG, MATCH_BERR, MATCH_SYSEN;
+   assign MATCH_PMAP_PS = (FC_CTRLLAYER) & (P_A[10:4] == 7'h0) & (P_A[3:1] == 3'h0); // Long, MSW
+   assign MATCH_PMAP_MA = (FC_CTRLLAYER) & (P_A[10:4] == 7'h0) & (P_A[3:1] == 3'h1); // Long, LSW
+   assign MATCH_SMAP    = (FC_CTRLLAYER) & (P_A[10:4] == 7'h0) & (P_A[3:1] == 3'h2);
+   assign MATCH_CTX     = (FC_CTRLLAYER) & (P_A[10:4] == 7'h0) & (P_A[3:1] == 3'h3);
+   assign MATCH_IDPROM  = (FC_CTRLLAYER) & (P_A[10:4] == 7'h0) & (P_A[3:1] == 3'h4);
+   assign MATCH_DIAG    = (FC_CTRLLAYER) & (P_A[10:4] == 7'h0) & (P_A[3:1] == 3'h5);
+   assign MATCH_BERR    = (FC_CTRLLAYER) & (P_A[10:4] == 7'h0) & (P_A[3:1] == 3'h6);
+   assign MATCH_SYSEN   = (FC_CTRLLAYER) & (P_A[10:4] == 7'h0) & (P_A[3:1] == 3'h7);
+
+   wire [23:0] 			 pa_forshow;
+   assign pa_forshow = {1'b0, ma_pmap2devices, P_A[10:1], 1'b0};
+   
+
+   //wire BOOTEN_n;
+   //assign BOOTEN_n = ~(~BOOT_n & ~P_SPROG_n);
+   //assign rom_oe_n = ~(~RD_PROM_n | ~BOOTEN_n);
+   wire 			 MATCH_PROM_BOOT;
+   assign MATCH_PROM_BOOT  = ((FC_SPROG) & (~BOOT_n)); // at boot (bit from SYSEN): all Supervisor Program are from the PROM
+
+   wire 			 WR;
+   assign WR = (~P_UDS_n | ~P_LDS_n) & ~P_AS_n & ~P_RW_n;
+   wire 			 RD;
+   assign RD = (~P_UDS_n | ~P_LDS_n) & ~P_AS_n &  P_RW_n;
+
+   // MMU & control layers   
+
+   // Context register
+   wire [15:0] 			 ctx_out;
+   ctx_reg ctx(.CLK(CLK),
+	       .din(P_DIN),
+	       .USER_n(P_FC[2]),
+	       .WR(WR & MATCH_CTX & C_S4),
+	       .dout(ctx_out),
+	       .cx(cx_ctx2smap)
+	       );
+   
+   // Segment Map
+   smap_sram smap(.CLK(CLK),
+		  .idx({P_A[23:15],cx_ctx2smap}),
+		  .WR(WR & MATCH_SMAP & C_S4),
+		  .ia_in(P_DIN[7:0]),
+		  .ia_out(ia_smap2pmap)
+		  );
+   // Page Map
+   pmap_sram pmap(.CLK(CLK),
+		  .idx({ia_smap2pmap,P_A[14:11]}),
+		  .WR_ma(WR & MATCH_PMAP_MA & C_S6),
+		  .WR_ps(WR & MATCH_PMAP_PS & C_S6),
+		  .ma_in(P_DIN[11:0]),
+		  .ps_in(P_DIN[15:4]),
+		  .ma_out(ma_pmap2devices),
+		  .ps_out(ps_pmap2devices)
+		  );
+   wire VALID, PROT5, PROT4, PROT3, PROT2, PROT1, PROT0, ACC, MOD;
+   wire [2:0] TYPE;
+   
+   assign VALID = ps_pmap2devices[11];
+   assign PROT5 = ps_pmap2devices[10];
+   assign PROT4 = ps_pmap2devices[9];
+   assign PROT3 = ps_pmap2devices[8];
+   assign PROT2 = ps_pmap2devices[7];
+   assign PROT1 = ps_pmap2devices[6];
+   assign PROT0 = ps_pmap2devices[5];
+   assign TYPE  = ps_pmap2devices[4:2];
+   assign ACC   = ps_pmap2devices[1];
+   assign MOD   = ps_pmap2devices[0];
+   
+
+   // combinatorial protection check on Page Map output, valid alongside ps_pmap2devices
+   wire 			 PROTERR, PROTERR_n;
+   wire 			 PROTERR_raw, PROTERR_raw_n;
+   assign PROTERR   = PROTERR_raw   &  C_S8 & FC_GENERAL; // can't have a protection error unless the MMU is doing its job
+   assign PROTERR_n = PROTERR_raw_n | ~C_S8 & FC_GENERAL;
+   
+   ttl_74F151 gen_proterr(.D0(ps_pmap2devices[8]),
+			  .D1(ps_pmap2devices[7]),
+			  .D2(ps_pmap2devices[6]),
+			  .D3(1'b0),
+			  .D4(ps_pmap2devices[11]),
+			  .D5(ps_pmap2devices[10]),
+			  .D6(ps_pmap2devices[9]),
+			  .D7(1'b0),
+			  .A(~P_RW_n),
+			  .B(P_FC[1]),
+			  .C(P_FC[2]),
+			  .Y(PROTERR_raw),
+			  .W(PROTERR_raw_n),
+			  .S(1'b0));
+
+   // IDPROM, read-only
+   wire [7:0] 			 idprom_out;
+   idprom idprom(.CLK(CLK),
+		 .idx(P_A[15:11]), // one byte per page...
+		 .dout(idprom_out)
+		 );
+
+   // Diagnostic register, write-only
+   wire [7:0] 			 leds;
+   gen8bit_reg diag(.CLK(CLK),
+		    .din(P_DIN[7:0]),
+		    .WR(WR & MATCH_DIAG & C_S4),
+		    .dout(leds),
+		    .CLR_n(1'b1)
+		    );
+   
+   // Bus Error Register, read-only
+   wire [7:0] 			 berr_in;
+   wire [7:0] 			 berr_out;
+   //assign berr_in = {C_S4, 1'b0, 1'b0, AEN, PROTERR, TIMEOUT, PARRERRU, PARRERRL};
+   assign berr_in = {1'b0, 1'b0, 1'b0, 1'b0, PROTERR, TIMEOUT, 1'b0, 1'b0}; // FIXME: partial
+   wire 			 ERR;
+   assign ERR = (PROTERR | TIMEOUT) & C_S4; // FIXME: partial
+   gen8bit_reg berr(.CLK(CLK),
+		    .din(berr_in),
+		    .WR(ERR),
+		    .dout(berr_out),
+		    .CLR_n(1'b1)
+		    );
+   assign P_BERR_n = ~ERR;
+
+   // System Enable register
+   wire [7:0] 			 sys_out;
+   gen8bit_reg sys(.CLK(CLK),
+		   .din(P_DIN[7:0]),
+		   .WR(WR & MATCH_SYSEN & C_S4),
+		   .dout(sys_out),
+		   .CLR_n(POR_n)
+		   );
+   wire 			 EN_PAR, EN_INT1, EN_INT2, EN_INT3, EN_PARERR, EN_DVMA, EN_INT, BOOT_n;
+   assign EN_PAR    = sys_out[0];
+   assign EN_INT1   = sys_out[1];
+   assign EN_INT2   = sys_out[2];
+   assign EN_INT3   = sys_out[3];
+   assign EN_PARERR = sys_out[4];
+   assign EN_DVMA   = sys_out[5];
+   assign EN_INT    = sys_out[6];
+   assign BOOT_n    = sys_out[7];
+
+   // info
+   always @(sys_out) begin
+      $display("System Enable Register updated");
+      $display("\tEnable Parity Generation: %x", EN_PAR);
+      $display("\tCause Interrupt on Level 1: %x", EN_INT1);
+      $display("\tCause Interrupt on Level 2: %x", EN_INT2);
+      $display("\tCause Interrupt on Level 3: %x", EN_INT3);
+      $display("\tEnable Parity Error ChecKing: %x", EN_PARERR);
+      $display("\tEnable Direct Virtual Memory Access: %x", EN_DVMA);
+      $display("\tEnable all Interrupts: %x", EN_INT);
+      $display("\tBoot State (O => boot, 1 => normal): %x", BOOT_n);
+   end // always @ (sys_out)
+
+   // PROM (two access modes: at boot using P_A, or mapped but matched through MA), read-only
+   wire [15:0] 			 prom_out;
+   bootrom bootrom(.CLK(CLK),
+		   .idx({1'b0, P_A[14:1]}),
+		   .dout(prom_out)
+		   );
+
+   // match wire for devices
+   // matching late as we need to be sure the MA is now valid, two clocks after the address is valid
+   // that happens on entry in S2 (rising edge), so on that edge IA becomes valid
+   // then on entry in S4 MA becomes valid
+   wire 			 MATCH_PROM, MATCH_RSVD, MATCH_DPC, MATCH_PARALLEL, MATCH_SERIAL, MATCH_TIMER, MATCH_ROPS, MATCH_RTC;
+   assign MATCH_PROM     = (FC_GENERAL) & (TYPE == 3'h1) & (ma_pmap2devices == 12'h000) & C_S6;
+   assign MATCH_RSVD     = (FC_GENERAL) & (TYPE == 3'h1) & (ma_pmap2devices == 12'h001) & C_S6;
+   assign MATCH_DPC      = (FC_GENERAL) & (TYPE == 3'h1) & (ma_pmap2devices == 12'h002) & C_S6; // not installed
+   assign MATCH_PARALLEL = (FC_GENERAL) & (TYPE == 3'h1) & (ma_pmap2devices == 12'h003) & C_S6;
+   assign MATCH_SERIAL   = (FC_GENERAL) & (TYPE == 3'h1) & (ma_pmap2devices == 12'h004) & C_S6;
+   assign MATCH_TIMER    = (FC_GENERAL) & (TYPE == 3'h1) & (ma_pmap2devices == 12'h005) & C_S6;
+   assign MATCH_ROPS     = (FC_GENERAL) & (TYPE == 3'h1) & (ma_pmap2devices == 12'h006) & C_S6; // not in prime
+   assign MATCH_RTC      = (FC_GENERAL) & (TYPE == 3'h1) & (ma_pmap2devices == 12'h007) & C_S6; // not in prime
+   
+   assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:8] == 4'h0) & C_S6; // "physically" installed
+   assign MATCH_MEMX     = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:0] < 12'hE00) & C_S6; // addressable, for DTACK (so auto-sizing works)
+
+   wire [15:0] 			 timer_out;
+   wire 			 FOUT, timer_int[5:1];
+   
+   
+   ttl_am9513 timer (
+		   .DIN(P_DIN),
+		   .DOUT(timer_out),
+		   .CD_n(P_A[1]), // checkme: latched in the original (LA1)
+		   .CS_n(1'b0), // always on
+		   .RD_n(~MATCH_TIMER | ~RD),
+		   .WR_n(~MATCH_TIMER | ~WR),
+		   .X1(),
+		   .X2(C100), // FIXME
+		   .FOUT(FOUT),
+		   .SRC1(1'b0),
+		   .SRC2(1'b0),
+		   .SRC3(1'b0),
+		   .SRC4(1'b0),
+		   .SRC5(1'b0),
+		   .SRC6(1'b0),
+		   .GAT1(FOUT),
+		   .GAT2(1'b0),
+		   .GAT3(1'b0),
+		   .GAT4(1'b0),
+		   .GAT5(1'b0),
+		   .OUT1(timer_int[1]), // FIXME: DOME
+		   .OUT2(timer_int[2]),
+		   .OUT3(timer_int[3]),
+		   .OUT4(timer_int[4]),
+		   .OUT5(timer_int[5])
+		   );
+
+   wire [15:0] 			 mem_out;
+   sram_sync_16bits_bytewritable #(.IDX_WIDTH(18)) mainmem (.CLK(C100),
+							  .idx({ma_pmap2devices[7:0],P_A[10:1]}),
+							  .WRl(WR & MATCH_MEM & ~P_LDS_n),
+							  .WRu(WR & MATCH_MEM & ~P_UDS_n),
+							  .din(P_DIN),
+							  .dout(mem_out)
+							  );
+
+   wire [7:0] 			 serial_out;
+   wire 			 serial_en;
+   wire 			 serial_int_n; // FIXME: DOME
+
+   wire 			 TxDA, TxDA_EN;
+   
+   tolog tolog(.CLK(C100), .TxDA(TxDA));
+   
+   SCC8530_TOP serial(
+		      // System controls:
+		      .PCLK(C100), // in // CHECKME
+		      
+		      // Bus:
+		      .DATA_IN(P_DIN[15:8]), // in
+		      .DATA_OUT(serial_out), // out
+		      .DATA_EN(serial_en), // out
+		      
+		      // Bus controls:
+		      .CEn(1'b0), // in
+		      .RDn(~MATCH_SERIAL | ~RD), // in
+		      .WRn(~MATCH_SERIAL | ~WR), // in
+		      .A_Bn(P_A[2]), // in
+		      .D_Cn(P_A[1]), // in
+		      
+		      // Interrupt:
+		      .INTACKn(1'b1), // in
+		      .IEI(1'b1), // in
+		      .IEO(), // out
+		      .INTn(serial_int_n), // out // Open drain in 5380.
+		      
+		      // Serial Data:
+		      .RxDA(), // in
+		      .TxDA(TxDA), // out
+		      .TxDA_EN(TxDA_EN), // out // This is an enhancement over the original chip.
+		      .RxDB(), // in
+		      .TxDB(), // out
+		      
+		      // Channel clocks:
+		      .TRxCA_INn(), // in
+		      .TRxCA_OUTn(), // out
+		      .TRxCA_EN(), // out
+		      .RTxCAn(), // in
+		      .TRxCB_INn(), // in
+		      .TRxCB_OUTn(), // out
+		      .TRxCB_EN(), // out
+		      .RTxCBn(), // in
+		      
+		      // Channel controls:
+		      .SYNCA_IN(), // in
+		      .SYNCA_OUT(), // out
+		      .SYNCA_EN(), // out
+		      .Wn_REQAn(), // out // Open drain in 5380.
+		      .DTRn_REQAn(), // out
+		      .RTSAn(), // out
+		      .CTSAn(), // in
+		      .DCDAn(), // in
+		      .SYNCB_IN(), // in
+		      .SYNCB_OUT(), // out
+		      .SYNCB_EN(), // out
+		      .Wn_REQBn(), // out
+		      .DTRn_REQBn(), // out
+		      .RTSBn(), // out
+		      .CTSBn(), // in
+		      .DCDBn() // in
+		      );
+   
+   
+   
+   // Answering the CPU
+   assign P_DOUT = DATA_EN         ? P_DIN : // loopback
+		   MATCH_CTX       ? ctx_out :
+		   MATCH_SMAP      ? {8'h0, ia_smap2pmap} :
+		   MATCH_PMAP_PS   ? {ps_pmap2devices, 4'h0} :
+		   MATCH_PMAP_MA   ? {4'h0, ma_pmap2devices} :
+		   MATCH_SYSEN     ? {8'h0, sys_out} :
+		   MATCH_BERR      ? {8'h0, berr_out} :
+		   MATCH_IDPROM    ? {8'h0, idprom_out} :
+		   MATCH_PROM_BOOT ? prom_out :
+		   MATCH_PROM      ? prom_out :
+		   MATCH_TIMER     ? timer_out :
+		   MATCH_MEM       ? mem_out :
+		   MATCH_SERIAL    ? {serial_out, 8'h0} :
+		   16'hDEAD;
+
+`ifdef DONTDOIT
+   // DTACK handling
+   // DTACK is asserted 1 cycle when ack_ctr reach 1
+   reg [3:0] 	       ack_ctr;
+   localparam ACK_CTR_VALID = 4'h1;
+   localparam ACK_CTR_RESET = 4'h0;
+   
+   reg 				 need_dtack;
+   
+   initial
+     begin
+	ack_ctr = 4'h0; // FIXME
+	need_dtack = 1'b0; // FIXME
+     end;
+				 
+   assign P_DTACK_n = (need_dtack & (ack_ctr == ACK_CTR_VALID)) ? 1'b0 : 1'b1;
+   always @(posedge CLK)
+     begin
+	if  (ack_ctr == ACK_CTR_VALID) need_dtack <= 1'b0;
+	if  (ack_ctr >  ACK_CTR_RESET) ack_ctr <= ack_ctr - 1;
+	if ((ack_ctr == ACK_CTR_RESET) & (~P_AS_n) & (P_RW_n)) // new read cycle
+	  begin
+	     need_dtack <= 1;
+	     // FC==3 devices uses P_A, so the match is valid early, we might need to wait if they are dependent on another device
+	     if (MATCH_CTX | MATCH_IDPROM | MATCH_SYSEN | MATCH_BERR | MATCH_PROM_BOOT) ack_ctr <= ACK_CTR_VALID; // address is already valid, we can ACK on the next clock
+	     if (MATCH_SMAP) ack_ctr <= ACK_CTR_VALID; // ctx isn't dependent on the address and is already valid
+	     if (MATCH_PMAP_PS | MATCH_PMAP_MA) ack_ctr <= ACK_CTR_VALID + 1; // we need another cycle for IA to become valid
+	     // FC !=3 devices ues MA, so the match is valid late
+	     if (MATCH_TIMER) ack_ctr <= ACK_CTR_VALID + 2; // physically mapped devices need another cycle for the MA to be valid
+	  end;
+	if ((ack_ctr == ACK_CTR_RESET) & (~P_AS_n) & (~P_RW_n) & (~P_LDS_n | ~P_UDS_n)) // new write cycle
+	  begin
+	     need_dtack <= 1;
+	     // FC==3 devices uses P_A, so the match is valid early, we might need to wait if they are dependent on another device
+	     if (MATCH_CTX | MATCH_SYSEN | MATCH_DIAG) ack_ctr <= ACK_CTR_VALID; // address is already valid, we can ACK on the next clock
+	     if (MATCH_SMAP) ack_ctr <= ACK_CTR_VALID; // ctx isn't dependent on the address and is already valid
+	     if (MATCH_PMAP_PS | MATCH_PMAP_MA) ack_ctr <= ACK_CTR_VALID + 1; // we need another cycle for IA to become valid
+	     // FC !=3 devices ues MA, so the match is valid late
+	     if (MATCH_TIMER) ack_ctr <= ACK_CTR_VALID + 2; // physically mapped devices need another cycle for the MA to be valid
+	  end;
+     end // always @ (CLK)
+`else // !`ifdef DONTDOIT
+   assign P_DTACK_n = ~(
+			( P_RW_n & C_S4 & (MATCH_CTX | MATCH_IDPROM | MATCH_SYSEN | MATCH_BERR | MATCH_PROM_BOOT)) | // entering S4, quick devices
+			( P_RW_n & C_S4 & (MATCH_SMAP)) |  // entering S4, quick devices (CTX is 1 clock but went valid after being written, not affected by P_A)
+			( P_RW_n & C_S6 & (MATCH_PMAP_PS | MATCH_PMAP_MA)) |  // entering S6, physical map needed an extra cycle
+			( P_RW_n & C_S8 & (MATCH_TIMER | MATCH_PROM | MATCH_MEMX | MATCH_SERIAL)) | // entering S8, devices going through the MMU
+
+			(~P_RW_n & C_S4 & (MATCH_CTX | MATCH_SYSEN | MATCH_DIAG)) | // entering S4, quick devices
+			(~P_RW_n & C_S4 & (MATCH_SMAP)) |  // entering S4, quick devices (CTX is 1 clock but went valid after being written, not affected by P_A)
+			(~P_RW_n & C_S6 & (MATCH_PMAP_PS | MATCH_PMAP_MA)) |  // entering S6, physical map needed an extra cycle
+			(~P_RW_n & C_S8 & (MATCH_TIMER | MATCH_MEMX | MATCH_SERIAL)) | // entering S8, devices going through the MMU
+			
+			1'b0);
+`endif
+   
+   
+   // LEDS
+   always @(leds) begin
+      $display("Leds are now %x", ~leds);
+      case (~leds)
+	8'hff:$display(" => L_RESET");
+	8'h00:$display(" => L_RUNNING");
+	8'h01:$display(" => L_INITIAL");
+	8'h02:$display(" => L_USERDOG");
+	8'h03:$display(" => L_GOTMEM");
+	8'h04:$display(" => (initial led test only)");
+	8'h07:$display(" => L_AFTERDIAG");
+	8'h08:$display(" => L_HEARTBEAT");
+	8'h10:$display(" => (initial led test only)");
+	8'h11:$display(" => L_CONTEXT");
+	8'h20:$display(" => (initial led test only)");
+	8'h21:$display(" => L_SM_CONST");
+	8'h23:$display(" => L_SM_DATA");
+	8'h22:$display(" => L_SM_ADDR");
+	8'h31:$display(" => L_PM_CONST");
+	8'h33:$display(" => L_PM_DATA");
+	8'h32:$display(" => L_PM_ADDR");
+	8'h40:$display(" => L_PROM");
+	8'h50:$display(" => L_UART");
+	8'h70:$display(" => L_M_MAP");
+	8'h71:$display(" => L_M_CONST");
+	8'h72:$display(" => L_M_ADDR");
+	8'h7F:$display(" => L_PARITY");
+	8'h80:$display(" => (initial led test only)");
+	8'h81:$display(" => L_TIMER");
+	8'hF1:$display(" => L_SETUP_MEM");
+	8'hF2:$display(" => L_SETUP_MAP");
+	8'hF3:$display(" => L_SETUP_FB");
+	8'hF4:$display(" => L_SETUP_KEYB");
+	default: $display(" => unknown pattern!!!");
+      endcase
+      //$flushlog;
+   end // always @ (leds)
+
+   // CLOCKS // FIXME
+   reg clk20;
+   reg clk10;
+   initial
+     begin
+	clk20 = 1'b0;
+	clk10 = 1'b0;
+     end
+   always @(posedge clk40) clk20 <= ~clk20;
+   always @(posedge clk20) clk10 <= ~clk10;
+   assign C100 = clk10;
+   assign C100_n = ~clk10;
+
+   // interrupts encoding
+
+   
+
+   // interrupts
+   wire 	       INT7_n, INT6_n, INT5_n, INT4_n, INT3_n, INT2_n, INT1_n;
+   // interrupts encoding
+   ttl_74LS148 irq_encoder(.I_n({INT7_n, INT6_n, INT5_n, INT4_n, INT3_n, INT2_n, INT1_n, 1'b0}),
+			  .A_n({IPL2_n, IPL1_n, IPL0_n}),
+			  .EI_n(~EN_INT),
+			  .EO_n(), // unused output
+			  .GS_n() // unused output
+			   );
+   
+   assign INT1_n = ~EN_INT1;
+   assign INT2_n = ~EN_INT2;
+   assign INT3_n = ~EN_INT3;
+   assign INT4_n = 1'b1; // FIXME
+   assign INT5_n = ~timer_int[2] & ~timer_int[3] & ~timer_int[4] & ~timer_int[5];
+   assign INT6_n = serial_int_n;
+   assign INT7_n = ~timer_int[1];
+   
+   
+endmodule // sun2_fpga
