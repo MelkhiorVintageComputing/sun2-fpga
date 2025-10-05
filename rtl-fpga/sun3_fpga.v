@@ -128,9 +128,9 @@ module sun3_fpga(input 	     clk40,
    //assign MATCH_COPS    = (FC_CTRLLAYER) & (P_ADR_IN[31:28] == 4'hA); // optional
    //assign MATCH_BOPS    = (FC_CTRLLAYER) & (P_ADR_IN[31:28] == 4'hB); // optional
    /* 0xC to 0xE: unused */
-   assign MATCH_UARTBYP = (FC_CTRLLAYER) & (P_ADR_IN[31:28] == 4'hF); // FIXME: DOME
+   assign MATCH_UARTBYP = (FC_CTRLLAYER) & (P_ADR_IN[31:28] == 4'hF);
 
-   wire [23:0] 			 pa_forshow; // more readable as a wave, no functional use
+   wire [31:0] 			 pa_forshow; // more readable as a wave, no functional use
    assign pa_forshow = {ma_pmap2devices, P_ADR_IN[12:0]};
 
    wire 			 MATCH_PROM_BOOT;
@@ -241,7 +241,7 @@ module sun3_fpga(input 	     clk40,
 		   .din(P_DATA_IN[31:24]),
 		   .WR(WR & MATCH_SYSEN & C_S4),
 		   .dout(sys_out),
-		   .CLR_n(POR_n)
+		   .CLR_n(P_RESET_n)
 		   );
    /* split the 8 system bits by name */
    wire 			 EN_DIAG, EN_FPA, EN_COPY, EN_VIDEO, EN_CACHE, EN_SDVMA, EN_FPP, EN_BOOTn;
@@ -364,8 +364,8 @@ module sun3_fpga(input 	     clk40,
 		      
 		      // Bus controls:
 		      .CEn(1'b0), // in
-		      .RDn(~MATCH_SERIAL | ~RD), // in
-		      .WRn(~MATCH_SERIAL | ~WR), // in
+		      .RDn((~MATCH_SERIAL & ~MATCH_UARTBYP) | ~RD), // in
+		      .WRn((~MATCH_SERIAL & ~MATCH_UARTBYP) | ~WR), // in
 		      .A_Bn(P_ADR_IN[2]), // in
 		      .D_Cn(P_ADR_IN[1]), // in
 		      
@@ -486,7 +486,7 @@ module sun3_fpga(input 	     clk40,
 		      .din(P_DATA_IN[31:24]),
 		      .WR(WR & MATCH_IRQREG),
 		      .dout(irqreg_out),
-		      .CLR_n(1'b1)
+		      .CLR_n(P_RESET_n)
 		      );
    wire 	       EN_IRQ7, EN_IRQ6, EN_IRQ5, EN_IRQ4, EN_IRQ3, EN_IRQ2, EN_IRQ1, EN_INT;
    assign EN_IRQ7 = irqreg_out[7];
@@ -598,7 +598,7 @@ module sun3_fpga(input 	     clk40,
    /* no video for now */
    assign V_INT = 1'b0;
    /* SCC_IRQ is for both Z8530 */
-   assign SCC_IRQ = 1'b0; // ~(serial_int_n & kbdms_int_n); // FIXME!!!
+   assign SCC_IRQ = ~(serial_int_n & kbdms_int_n);
    /* no Ethernet for now */
    assign E_IRQ = 1'b0;
    /* no Parity support */

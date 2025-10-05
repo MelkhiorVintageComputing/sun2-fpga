@@ -40,7 +40,7 @@ always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef2be4) $display("PC now m
 always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef2c10) $display("PC now mod3read");
 always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef2d46) $display("PC now test$");
 always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef2d74) $display("PC now error$");
-always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef2da8) $display("PC now loop$end");
+//always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef2da8) $display("PC now loop$end");
 always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef2f18) $display("PC now print$");
 always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef307c) $display("PC now UARTinit");
 always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef3104) $display("PC now banner");

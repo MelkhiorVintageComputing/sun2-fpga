@@ -105,8 +105,8 @@ f16	= !((EN_IRQ7 & !RTC) #
 		    ( f18 &  f19 & ~f20          & EN_INT                                          & ~SCC_IRQ));
      end
 
-   assign IPL_n[0] = ~IPL0;
-   assign IPL_n[1] = ~IPL1;
-   assign IPL_n[2] = ~IPL2;
+   assign IPL_n[0] = EN_INT ? ~IPL0 : 1'b1; // protection against 'x'-valued IRQ that corrupt the internal signals
+   assign IPL_n[1] = EN_INT ? ~IPL1 : 1'b1;
+   assign IPL_n[2] = EN_INT ? ~IPL2 : 1'b1;
   
 endmodule // sun3_irq_priority
