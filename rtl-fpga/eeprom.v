@@ -1,0 +1,53 @@
+module eeprom(input CLK,
+	      input [10:0]     idx,
+	      input 	       WR,
+	      input [7:0]      din,
+	      output reg [7:0] dout
+							  );
+   
+   reg [7:0] sram[0:2047];
+
+   task init;
+      integer a;
+      begin
+         for (a = 0; a < 2048; a = a + 1)
+	   begin
+	      case (a)
+		11'h014: sram[a] <= 8'h08;
+		11'h015: sram[a] <= 8'h04;
+		11'h018: sram[a] <= 8'h12;
+		11'h019: sram[a] <= 8'h73;
+		11'h01a: sram[a] <= 8'h64;
+		11'h01f: sram[a] <= 8'h12;
+		11'h022: sram[a] <= 8'h69;
+		11'h023: sram[a] <= 8'h65;
+		11'h050: sram[a] <= 8'h50;
+		11'h051: sram[a] <= 8'h22;
+		11'h059: sram[a] <= 8'h25;
+		11'h05a: sram[a] <= 8'h80;
+		11'h05b: sram[a] <= 8'h12;
+		11'h061: sram[a] <= 8'h25;
+		11'h062: sram[a] <= 8'h80;
+		11'h063: sram[a] <= 8'h12;
+		11'h0b8: sram[a] <= 8'h55;
+		11'h0b9: sram[a] <= 8'haa;
+		11'h70b: sram[a] <= 8'h12;
+		default: sram[a] <= 8'h00;
+	      endcase
+	   end
+      end
+   endtask
+   
+   initial
+     begin
+	dout = $random;
+        init;
+     end
+   
+   always @(posedge CLK)
+     begin
+	if (WR) sram[idx] <= din;
+	dout <= sram[idx];
+     end
+
+endmodule // smap_sync
