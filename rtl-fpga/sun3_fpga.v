@@ -225,15 +225,18 @@ module sun3_fpga(input 	     clk40,
    // Bus Error Register, read-only
    wire [7:0] 			 berr_in;
    wire [7:0] 			 berr_out;
+   wire 			 BERRCLK;
+   
    //assign berr_in = {1'b1, 1'b1, FPAENERR, FPABERR, VMEBERR, TIMEOUT, PROTERR, INVALID}; // this is from the architecture manual
    //assign berr_in = {WDOGn, 1'b1, 1'b1, 1'b1, 1'b1, BERR_Tn, BERR_Pn, BERR_Vn}; // this is from the 3/60 schematics
    assign berr_in = {1'b0, 1'b0, 1'b0, 1'b0, 1'b0, BERR_T, BERR_P, BERR_V}; // we use positive logic // fixme: watchdog?
    gen8bit_reg berr(.CLK(CLK),
 		    .din(berr_in),
-		    .WR(ERR),
+		    .WR(BERRCLK),
 		    .dout(berr_out),
-		    .CLR_n(1'b1)
+		    .CLR_n(POR_n /*1'b1 */) /* FIXME: how is supposed to be initialized ??? */
 		    );
+   assign BERRCLK	= ~(!C_S5 | (!BERR_P & !BERR_T & !BERR_V)); // FIXME: timings
 
    // System Enable register
    wire [7:0] 			 sys_out;
