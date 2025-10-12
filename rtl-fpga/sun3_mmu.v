@@ -1,7 +1,7 @@
 module sun3_mmu #(parameter CTX_VALID_BITS=3,
-		  SMAP_IDX_WIDTH=12,
+		  SMAP_IDX_WIDTH=14, /* 7188 SRAM */
 		  SMAP_OUTPUT_BITS=8,
-		  PMAP_IDX_WIDTH=12,
+		  PMAP_IDX_WIDTH=12, /* 2168 SRAM */
 		  PMAP_MA_OUTPUT_BITS=19,
 		  PMAP_PS_OUTPUT_BITS=8)
    (input CLK,
