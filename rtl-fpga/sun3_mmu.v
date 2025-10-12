@@ -36,8 +36,8 @@ module sun3_mmu #(parameter CTX_VALID_BITS=3,
    ctx_reg_sun3 #(.VALID_BITS(CTX_VALID_BITS)) ctx(.CLK(CLK),
 						   .din(P_DIN[31:24]),
 						   .WR(WR & MATCH_CTX & C_S4),
-						   .dout(ctx_out), // 16-bits output (3 lsb used in each byte)
-						   .cx(cx_ctx2smap) // 3-bits output (selected User:Supervisor by P_FC[2])
+						   .dout(ctx_out), // 8-bits output (3 lsb used)
+						   .cx(cx_ctx2smap) // 3-bits output 
 						   );
    
    // Segment Map
