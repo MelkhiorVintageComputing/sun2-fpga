@@ -41,8 +41,6 @@ module sun3_fpga(input 	     clk40,
 
    assign P_AVEC_n = 1'b0;
    assign P_STERM_n = 1'b1;
-
-   pullup(P_BERR_n); // FIXME!!!
    
    
    
@@ -229,14 +227,18 @@ module sun3_fpga(input 	     clk40,
    
    //assign berr_in = {1'b1, 1'b1, FPAENERR, FPABERR, VMEBERR, TIMEOUT, PROTERR, INVALID}; // this is from the architecture manual
    //assign berr_in = {WDOGn, 1'b1, 1'b1, 1'b1, 1'b1, BERR_Tn, BERR_Pn, BERR_Vn}; // this is from the 3/60 schematics
-   assign berr_in = {1'b0, 1'b0, 1'b0, 1'b0, 1'b0, BERR_T, BERR_P, BERR_V}; // we use positive logic // fixme: watchdog?
+   //assign berr_in = {1'b0, 1'b0, 1'b0, 1'b0, 1'b0, BERR_T, BERR_P, BERR_V}; // we use positive logic // fixme: watchdog?
+   assign berr_in = { BERR_V, BERR_P, BERR_T, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0 }; // grr, bit order (timeout is 0x20) // we use positive logic // fixme: watchdog?
+   
    gen8bit_reg berr(.CLK(CLK),
 		    .din(berr_in),
 		    .WR(BERRCLK),
 		    .dout(berr_out),
 		    .CLR_n(POR_n /*1'b1 */) /* FIXME: how is supposed to be initialized ??? */
 		    );
-   assign BERRCLK	= ~(!C_S5 | (!BERR_P & !BERR_T & !BERR_V)); // FIXME: timings
+   assign BERRCLK	= (C_S8 & (BERR_P | BERR_T | BERR_V)); // FIXME: timing?
+   assign BERR	        = (C_S8 & (BERR_P | BERR_T | BERR_V)); // FIXME: timing?
+   assign P_BERR_n = ~BERR;
 
    // System Enable register
    wire [7:0] 			 sys_out;
@@ -335,8 +337,8 @@ module sun3_fpga(input 	     clk40,
    wire 			 EN_LLBYTE, EN_LUBYTE, EN_ULBYTE, EN_UUBYTE;
    
    sram_sync_32bits_bytewritable #(.IDX_WIDTH(18)) mainmem (.CLK(CLK),
-							  .idx({ma_pmap2devices[7:0],P_ADR_IN[10:1]}),
-							  .WRll(WR & MATCH_MEM & EN_LLBYTE), // FIXME: DOME, 4 EN_*BYTE signals from SIZ and A[1:0]
+							  .idx({ma_pmap2devices[8:0],P_ADR_IN[10:2]}),
+							  .WRll(WR & MATCH_MEM & EN_LLBYTE),
 							  .WRlu(WR & MATCH_MEM & EN_LUBYTE),
 							  .WRul(WR & MATCH_MEM & EN_ULBYTE),
 							  .WRuu(WR & MATCH_MEM & EN_UUBYTE),
@@ -367,8 +369,8 @@ module sun3_fpga(input 	     clk40,
 		      
 		      // Bus controls:
 		      .CEn(1'b0), // in
-		      .RDn((~MATCH_SERIAL & ~MATCH_UARTBYP) | ~RD), // in
-		      .WRn((~MATCH_SERIAL & ~MATCH_UARTBYP) | ~WR), // in
+		      .RDn(((~MATCH_SERIAL & ~MATCH_UARTBYP) | ~RD) & POR_n), // in // POR_n for HW reset
+		      .WRn(((~MATCH_SERIAL & ~MATCH_UARTBYP) | ~WR) & POR_n), // in // POR_n for HW reset
 		      .A_Bn(P_ADR_IN[2]), // in
 		      .D_Cn(P_ADR_IN[1]), // in
 		      
@@ -428,8 +430,8 @@ module sun3_fpga(input 	     clk40,
 		      
 		      // Bus controls:
 		      .CEn(1'b0), // in
-		      .RDn(~MATCH_KBDMS | ~RD), // in
-		      .WRn(~MATCH_KBDMS | ~WR), // in
+		      .RDn((~MATCH_KBDMS | ~RD) & POR_n), // in
+		      .WRn((~MATCH_KBDMS | ~WR) & POR_n), // in
 		      .A_Bn(P_ADR_IN[2]), // in
 		      .D_Cn(P_ADR_IN[1]), // in
 		      
