@@ -3,6 +3,7 @@
 `include "tolog.v"
 
 module sun3_fpga(input 	     clk40,
+		 input 	       clk32768, // improveme
 		 output        CLK,
 		 input [31:0]  P_ADR_IN,
 		 input [31:0]  P_DATA_IN,
@@ -37,12 +38,13 @@ module sun3_fpga(input 	     clk40,
    pullup(P_BGACK_n);
 
    pullup(P_RESET_n); // FIXME
-   pullup(P_HALT_n);
+   pullup(P_HALT_n); // FIXME
 
    assign P_AVEC_n = 1'b0;
    assign P_STERM_n = 1'b1;
    
-   
+   wire 			 EN_DEV;
+   wire 			 DISACC;
    
    assign CLK = clk40; // FIXME really fast Sun3 :-)
 
@@ -54,7 +56,7 @@ module sun3_fpga(input 	     clk40,
 	#2000 POR_n = 1'b1;
      end
    assign P_RESET_n = POR_n; // FIXME
-   assign P_HALT_n = POR_n;
+   assign (strong0, highz1) P_HALT_n = POR_n;
 
    // layers shortcuts
    wire FC_CTRLLAYER;
@@ -144,6 +146,7 @@ module sun3_fpga(input 	     clk40,
    wire [7:0] 			 ia_smap2pmap; // fixme: parametrizable
    wire [18:0] 			 ma_pmap2devices; // only 16-bits in e.g. 3/60 // fixme: parametrizable
    wire [7:0] 			 ps_pmap2devices; // fixme: parametrizable
+   wire [3:0] 			 mmu_stat_in; 			 
 
    sun3_mmu mmu(.CLK(CLK),
 		/* matching */
@@ -160,11 +163,16 @@ module sun3_fpga(input 	     clk40,
 		/* timing signals */
 		.C_S4(C_S4),
 		.C_S6(C_S6),
+		.C_S8(C_S8),
 		/* MMU outputs */
 		.ctx_out(ctx_out),
 		.ia_smap2pmap(ia_smap2pmap),
 		.ma_pmap2devices(ma_pmap2devices),
-		.ps_pmap2devices(ps_pmap2devices)
+		.ps_pmap2devices(ps_pmap2devices),
+		/* stats */
+		.EN_DEV(EN_DEV),
+		.DISACC(DISACC),
+		.stat_in(mmu_stat_in)
 	    );
    
    /* split the 8 protection/status bits by name */
@@ -178,13 +186,15 @@ module sun3_fpga(input 	     clk40,
    assign MMU_S   = ps_pmap2devices[5];
    assign MMU_W   = ps_pmap2devices[6];
    assign MMU_V   = ps_pmap2devices[7];
+   assign mmu_stat_in[0] = MODIFY | WR;
+   assign mmu_stat_in[1] = 1'b1;
+   assign mmu_stat_in[2] = TYPE[0];
+   assign mmu_stat_in[3] = TYPE[1];
    
 
    // combinatorial protection check on Page Map output, valid alongside ps_pmap2devices
    // FIXME: FINISHME
    wire 			 BERR_P, BERR_V, BERR_T;
-   wire 			 EN_DEV;
-   wire 			 DISACC;
    // EN_DEV from 3/60:u102, minus R_ACK
    // normally, EN_DEV is further qualified by TYPE (from MMU) and some PA bits
    assign EN_DEV = ((P_ADR_IN[31:28] == 4'h0) & (FC_UPROG)           ) |
@@ -321,8 +331,10 @@ module sun3_fpga(input 	     clk40,
    /* won't even bother with the FPA */
 
    wire [7:0] 			 timer_out;
+   wire 			 timer_bus_en;
    wire 			 timer_int_n;
    
+/* -----\/----- EXCLUDED -----\/-----
    ttl_icm7170_alt timerchip(.CLK(CLK),
 			     .idx(P_ADR_IN[4:0]),
 			     .din(P_DATA_IN[31:24]),
@@ -330,6 +342,26 @@ module sun3_fpga(input 	     clk40,
 			     .RD(MATCH_TIMER & RD),
 			     .WR(MATCH_TIMER & WR),
 			     .int_n(timer_int_n));
+ -----/\----- EXCLUDED -----/\----- */
+   
+ icm7170 timerchip(.rst_n(POR_n),
+		   .a_in(P_ADR_IN[4:0]),
+		   .d_bus_in(P_DATA_IN[31:24]),
+		   .d_bus_out(timer_out),
+		   .d_bus_en(timer_bus_en),
+		   .rd_n(~MATCH_TIMER | ~RD),
+		   .wr_n(~MATCH_TIMER | ~WR),
+		   .cs_n(1'b0), 
+		   .ale(1'b1),
+		   // Oscillator
+		   .osc_in(clk32768), 
+		   .osc_out(),
+		   .int_source(1'b0),
+		   .int_out(timer_int_n),
+		   .vdd_present(1'b1),
+		   .vbackup_present(1'b1),
+		   .use_ext_100hz(1'b0),
+		   .clk_100hz(1'b0));
 
    /* the actual memory. For now it's just synchronous RAM */
    /* should probably be moved to some "real" RAM with variable timings, which will require changing the bus mux below */

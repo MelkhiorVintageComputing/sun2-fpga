@@ -1,6 +1,6 @@
 `timescale 1ns / 1ns
 
-module top(input clk40);
+module top(input clk40, input clk32768);
    wire CLK;
    wire [31:0] ADR_OUT;
    wire [31:0] DATA_IN;
@@ -32,6 +32,7 @@ module top(input clk40);
    
    
    sun3_fpga sun3(.clk40(clk40),
+		  .clk32768(clk32768),
 		  .CLK(CLK),
         
 		  // Address and data:
@@ -86,7 +87,6 @@ module top(input clk40);
    assign RESET_INn = P_RESET_n; // FIXME, all that mess
    wire        RESET_OUT_bis;
    assign RESET_OUT = RESET_INn ? RESET_OUT_bis : 1'b0;
-   wire        HALT_INn, HALT_OUTn;
    assign (strong0, highz1) P_HALT_n = HALT_OUTn;
    assign HALT_INn = P_HALT_n;
   

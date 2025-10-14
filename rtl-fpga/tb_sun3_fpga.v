@@ -5,9 +5,11 @@
 
 module tb();
    reg clk40;
+   reg clk32768;
+   
    reg cpu_trace = 0;
    
-   top dut(.clk40(clk40));
+   top dut(.clk40(clk40), .clk32768(clk32768));
 
    always
      begin
@@ -16,6 +18,14 @@ module tb();
 	//#12.71565755208333333000 clk40 = 1;
 	#12.5 clk40 = 0;
 	#12.5 clk40 = 1;
+     end
+
+   always
+     begin
+	// 32.768 kHz clock for ICM7170
+	clk32768 = 1;
+	#15258.789 clk32768 = 0;
+	#15258.789 clk32768 = 1;
      end
 
   initial
