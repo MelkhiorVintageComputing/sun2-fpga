@@ -31,7 +31,7 @@ module sram_sync_32bits_bytewritable #(parameter IDX_WIDTH=18) (input CLK,
 							      );
    sram_sync #(.DATA_WIDTH(8), .IDX_WIDTH(IDX_WIDTH)) uubyte (.CLK(CLK),
 								.idx(idx),
-							      .WR(WRlu),
+							      .WR(WRuu),
 							      .din(din[31:24]),
 							      .dout(dout[31:24])
 							      );
