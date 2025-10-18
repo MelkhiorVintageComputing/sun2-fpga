@@ -17,7 +17,7 @@ module ctx_reg_sun3 #(parameter VALID_BITS=3)(input CLK,
      begin
 	if (WR) ctx <= din[VALID_BITS-1:0];
 	dout <= {5'b0, ctx[VALID_BITS-1:0]};
-     end;
+     end
    assign cx = dout[VALID_BITS-1:0];
    
-endmodule;
+endmodule
