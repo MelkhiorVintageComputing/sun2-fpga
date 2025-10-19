@@ -389,7 +389,7 @@ module sun3_fpga(input 	     clk40,
    wire 			 serial_int_n; // FIXME: DOME
    wire 			 TxDA, TxDA_EN;
   
-   tolog tolog(.CLK(CLK), .TxDA(TxDA)); // so we can trace only TxDA in the VCD, pulseview doesn't like too many signals
+   tolog tolog(.TxDA(TxDA)); // so we can trace only TxDA in the VCD, pulseview doesn't like too many signals
    
    SCC8530_TOP serial(
 		      // System controls:
