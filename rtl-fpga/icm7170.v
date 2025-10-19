@@ -181,8 +181,22 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
    endfunction
    
    // Increment calendar when seconds rollover etc.
-   task advance_time_by_1_100th;
-      begin
+   task advance_time_by_1_100th();
+      integer flag_1_100s; // 1
+      integer flag_1_10s; // 2
+      integer flag_1_1s; // 3
+      integer flag_1_1m; // 4
+      integer flag_1_1h; // 5
+      integer flag_1_1d; // 6
+      
+     begin
+	 flag_1_100s = 0;
+	 flag_1_10s = 0;
+	 flag_1_1s = 0;
+	 flag_1_1m = 0;
+	 flag_1_1h = 0;
+	 flag_1_1d = 0;
+	
          if (!cmd_reg[3]) begin
             // run/stop bit D3 == 0 means stopped (spec says 0 stop). Our cmd_reg D3=1 => run
             // so only advance if run bit is 1.
@@ -190,25 +204,25 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
          end
          // increment 100th
          cnt_100th = cnt_100th + 1;
-         int_status[1] = 1'b1; // 1/100th increment flag
+         flag_1_100s = 1; // 1/100th increment flag
          if (cnt_100th >= 99) begin
             cnt_100th = 0;
             // increment seconds
             cnt_sec = cnt_sec + 1;
-            int_status[3] = 1'b1; // 1s flag
+            flag_1_1s = 1; // 1s flag
             // 1/10s: if 100th low nibble 0 (i.e., every 10 increments)
             if ((cnt_100th % 10) == 9) begin
-               int_status[2] = 1'b1; // 1/10 sec flag (simplified)
+               flag_1_10s = 1; // 1/10 sec flag (simplified)
             end
 	    
             if (cnt_sec >= 59) begin
                cnt_sec = 0;
                cnt_min = cnt_min + 1;
-               int_status[4] = 1'b1; // minute flag
+               flag_1_1m = 1; // minute flag
                if (cnt_min >= 59) begin
                   cnt_min = 0;
                   cnt_hour = cnt_hour + 1;
-                  int_status[5] = 1'b1; // hour flag
+                  flag_1_1h = 1; // hour flag
                   if (cmd_reg[2] == 0) begin
                      // 24-hour mode
                      if (cnt_hour >= 23) begin
@@ -225,7 +239,7 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
                               if (cnt_year >= 99) cnt_year = 0;
                            end
                         end
-                        int_status[6] = 1'b1; // day flag
+                        flag_1_1d = 1; // day flag
                      end
                   end else begin
                      // 12-hour mode handling (1..12 + AM/PM bit is not fully spec'd here)
@@ -243,17 +257,33 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
                               if (cnt_year >= 99) cnt_year = 0;
                            end
                         end
-                        int_status[6] = 1'b1; // day flag
+                        flag_1_1d = 1; // day flag
                      end
                   end
                end
             end
-         end
+         end // if (cnt_100th >= 99)
+
+	 int_status = int_status |
+		      (flag_1_100s ? 8'h02 : 8'h00) |
+		      (flag_1_10s  ? 8'h04 : 8'h00) |
+		      (flag_1_1s   ? 8'h08 : 8'h00) |
+		      (flag_1_1m   ? 8'h10 : 8'h00) |
+		      (flag_1_1h   ? 8'h20 : 8'h00) |
+		      (flag_1_1d   ? 8'h40 : 8'h00);
 	 
          // After the small increments, evaluate alarm compare
 	 // this is off by 1/100th ? (as it will check the old value)
          do_alarm_compare();
-      end
+	
+         update_interrupt_output(.new_int_status(int_status |
+						 (flag_1_100s ? 8'h02 : 8'h00) |
+						 (flag_1_10s  ? 8'h04 : 8'h00) |
+						 (flag_1_1s   ? 8'h08 : 8'h00) |
+						 (flag_1_1m   ? 8'h10 : 8'h00) |
+						 (flag_1_1h   ? 8'h20 : 8'h00) |
+						 (flag_1_1d   ? 8'h40 : 8'h00)));
+     end
    endtask
    
    task do_alarm_compare;
@@ -281,7 +311,7 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
    endtask
    
    // Evaluate whether to assert interrupt output (int_out)
-   task update_interrupt_output;
+   task update_interrupt_output(input [7:0] new_int_status);
       reg any_enabled_and_flag;
       begin
 	 // The datasheet: Interrupt output is enabled when command.D4 (interrupt enable) and
@@ -291,7 +321,7 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
 	 // We'll consider D0 alarm, D1 1/100, D2 1/10, D3 1s, D4 min, D5 hr, D6 day
 	 // status bits same mapping D0 alarm, D1 1/100, D2 1/10, D3 1s, D4 min, D5 hr, D6 day
 	 for (integer b=0; b<=6; b=b+1) begin
-            if (int_mask[b] && int_status[b]) any_enabled_and_flag = 1;
+            if (int_mask[b] && new_int_status[b]) any_enabled_and_flag = 1;
 	 end
 	 
 	 if (cmd_reg[4] && any_enabled_and_flag) begin
@@ -362,6 +392,7 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
       end
    end
    
+   wire [7:0] new_int_status;
    // On each 100Hz tick advance time by 1/100s
    always @(posedge tick_100hz or negedge rst_n) begin
       if (!rst_n) begin
@@ -369,7 +400,6 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
       end else begin
          // If device in battery-only mode (vdd_present==0), still keep time; emulate that by still advancing
          advance_time_by_1_100th();
-         update_interrupt_output();
       end
    end
    
@@ -491,7 +521,7 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
             if (current_addr(1'b0) == ADDR_INT_STATUS) begin
                int_status <= 8'h00;
                // reading status resets the int transistor (clear int_out)
-               update_interrupt_output();
+               update_interrupt_output(.new_int_status(8'h00));
             end
          end
       end
