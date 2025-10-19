@@ -1,6 +1,10 @@
 always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef00e8) $display("PC now k2reset");
 always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef01d2) $display("PC now bootreset");
 always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef0248) $display("PC now _exit_to_mon");
+always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef0258) $display("PC now _trap");
+always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef0324) $display("PC now _bus_error");
+always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef03a2) $display("PC now _nmi");
+always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef03bc) $display("PC now _no_parity");
 always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef04b6) $display("PC now sendtokbd");
 always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef04e4) $display("PC now get_enable");
 always @(suska_68k30l.PC) if (suska_68k30l.PC == 32'hfef04fe) $display("PC now set_enable");
