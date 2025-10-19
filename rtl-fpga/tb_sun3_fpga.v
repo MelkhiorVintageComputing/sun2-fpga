@@ -8,6 +8,8 @@ module tb();
    reg clk32768;
    
    reg cpu_trace = 0;
+   reg serial_trace = 0;
+   
    
    top dut(.clk40(clk40), .clk32768(clk32768));
 
@@ -42,8 +44,9 @@ module tb();
        //#50000000 $finish;
     end
        
-
-   always @(posedge clk40) if (~dut.sun3.TxDA_EN) $dumpon;
+   
+   always @(posedge clk40) if (~dut.sun3.TxDA_EN) serial_trace = 1;
+   always @(posedge clk40) if ( dut.sun3.TxDA_EN & serial_trace) $dumpon;
    
    always
      begin

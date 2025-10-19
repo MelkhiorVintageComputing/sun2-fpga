@@ -303,7 +303,8 @@ module sun3_fpga(input 	     clk40,
    assign MATCH_SERIAL   = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h1) & C_S6;
    assign MATCH_EEPROM   = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h2) & C_S6;
    assign MATCH_TIMER    = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h3) & C_S6;
-   //assign MATCH_MEMERR   = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h4) & C_S6; // no parity?
+   assign MATCH_MEMERR_CTRL = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h4) & C_S6 & (P_ADR_IN[2:0] == 3'h0);
+   assign MATCH_MEMERR_ADDR = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h4) & C_S6 & (P_ADR_IN[2:0] == 3'h4);
    assign MATCH_IRQREG   = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h5) & C_S6;
    //assign MATCH_I82586   = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h6) & C_S6;
    //assign MATCH_CMAP     = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h7) & C_S6; // color FB only
@@ -318,7 +319,7 @@ module sun3_fpga(input 	     clk40,
    //assign MATCH_ECCREG   = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hF) & C_S6; // ECC memory only
 
    assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:8] == 11'h000) & C_S6; // "physically" installed, here just the two megs
-   assign MATCH_MEMX     = (FC_GENERAL) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'h00) & C_S6; // addressable // CHECKME: sun3 behavior
+   assign MATCH_MEMX     = (FC_GENERAL) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'h00) & C_S6; // addressable, 16 MiB (?) // CHECKME: sun3 behavior
    //assign MATCH_FBMEMX   = (FC_GENERAL) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF) & C_S6; // addressable // CHECKME: sun3 behavior
 
    /* VME spaces, unused, no timing, FYI only */
@@ -451,6 +452,8 @@ module sun3_fpga(input 	     clk40,
    wire [7:0] 			 kbdms_out;
    wire 			 kbdms_en;
    wire 			 kbdms_int_n; // FIXME: DOME
+   wire 			 KBDMS_TxDA, KBDMS_TxDA_EN;
+   
    SCC8530_TOP kbdms(
 		      // System controls:
 		      .PCLK(CLK), // in // CHECKME: sun3 expect a 4.9152 clock, like sun2
@@ -475,8 +478,8 @@ module sun3_fpga(input 	     clk40,
 		      
 		      // Serial Data:
 		      .RxDA(), // in
-		      .TxDA(TxDA), // out
-		      .TxDA_EN(TxDA_EN), // out // This is an enhancement over the original chip.
+		      .TxDA(KBDMS_TxDA), // out
+		      .TxDA_EN(KBDMS_TxDA_EN), // out // This is an enhancement over the original chip.
 		      .RxDB(), // in
 		      .TxDB(), // out
 		      
@@ -517,6 +520,19 @@ module sun3_fpga(input 	     clk40,
 		 .dout(eeprom_out));
    
    
+   // mem err crl reg
+   // need to return 0 in the NMI handler
+   // we can remove the bits in the PROM, but not in the OS
+   wire [7:0] 			 memerr_ctrl_out;
+   gen8bit_reg memerr_ctrl(.CLK(CLK),
+			   .din(P_DATA_IN[31:24]),
+			   .WR(WR & MATCH_MEMERR_CTRL),
+			   .dout(memerr_ctrl_out),
+			   .CLR_n(P_RESET_n)
+			   );
+   // mem err addr reg
+   // return 0 on the bus always
+   
    // IRQ reg
    wire [7:0] 			 irqreg_out;
    gen8bit_reg irqreg(.CLK(CLK),
@@ -552,6 +568,8 @@ module sun3_fpga(input 	     clk40,
 		       MATCH_SERIAL    ? {serial_out, 24'h000000} :
 		       MATCH_UARTBYP   ? {serial_out, 24'h000000} :
 		       MATCH_EEPROM    ? {eeprom_out, 24'h000000} :
+		       MATCH_MEMERR_CTRL ? {memerr_ctrl_out, 24'h000000} :
+		       MATCH_MEMERR_ADDR ? {32'h00000000} :
 		       MATCH_TIMER     ? {timer_out, 24'h000000} :
 		       MATCH_IRQREG    ? {irqreg_out, 24'h000000} :
 		       32'hDEADBEEF;
@@ -562,20 +580,20 @@ module sun3_fpga(input 	     clk40,
    // For memory this will need updating if we use "real" (variable-timing) memory
    assign DO_ACK = ( // FIXME: 32 vs 16 vs 8 bits, sun3 (or rewire for eevryone to be 32-bits-like ?)
 		     /* reads */
-		     ( P_RW_n & C_S4 & (MATCH_CTX | MATCH_IDPROM | MATCH_SYSEN | MATCH_BERR | MATCH_PROM_BOOT | MATCH_UARTBYP)) | // entering S4, quick devices
+		     ( P_RW_n & C_S4 & (MATCH_CTX | MATCH_IDPROM | MATCH_SYSEN | MATCH_BERR |              MATCH_PROM_BOOT | MATCH_UARTBYP | MATCH_MEMERR_CTRL | MATCH_MEMERR_ADDR)) | // entering S4, quick devices (RO or WR)
 		     ( P_RW_n & C_S4 & (MATCH_SMAP)) |  // entering S4, quick devices (CTX is 1 clock but went valid after being written, not affected by P_A)
 		     ( P_RW_n & C_S6 & (MATCH_PMAP)) |  // entering S6, physical map needed an extra cycle
-		     ( P_RW_n & C_S8 & (MATCH_MEMX | MATCH_KBDMS | MATCH_SERIAL | MATCH_EEPROM | MATCH_TIMER | MATCH_IRQREG | MATCH_PROM)) | // entering S8, devices going through the MMU
+		     ( P_RW_n & C_S8 & (MATCH_MEM | MATCH_KBDMS | MATCH_SERIAL | MATCH_EEPROM | MATCH_TIMER | MATCH_IRQREG | MATCH_PROM)) | // entering S8, devices going through the MMU
 		     /* writes */
-		     (~P_RW_n & C_S4 & (MATCH_CTX | MATCH_SYSEN | MATCH_DIAG | MATCH_UARTBYP)) | // entering S4, quick devices
+		     (~P_RW_n & C_S4 & (MATCH_CTX |                MATCH_SYSEN |              MATCH_DIAG |                   MATCH_UARTBYP | MATCH_MEMERR_CTRL)) | // entering S4, quick devices (WO or WR)
 		     (~P_RW_n & C_S4 & (MATCH_SMAP)) |  // entering S4, quick devices (CTX is 1 clock but went valid after being written, not affected by P_A)
 		     (~P_RW_n & C_S6 & (MATCH_PMAP)) |  // entering S6, physical map needed an extra cycle
-		     (~P_RW_n & C_S8 & (MATCH_MEMX | MATCH_KBDMS | MATCH_SERIAL | MATCH_EEPROM | MATCH_TIMER | MATCH_IRQREG)) | // entering S8, devices going through the MMU
+		     (~P_RW_n & C_S8 & (MATCH_MEM | MATCH_KBDMS | MATCH_SERIAL | MATCH_EEPROM | MATCH_TIMER | MATCH_IRQREG)) | // entering S8, devices going through the MMU
 		     
 		     1'b0);
    
    assign P_DSACK_n[0] = ~(DO_ACK); // we only have 8 and 32 bits for now, so everyone assert [0] (16-bits are [1] only]
-   assign P_DSACK_n[1] = ~(DO_ACK & (MATCH_PMAP | MATCH_PROM_BOOT | MATCH_PROM | MATCH_MEM)); // 32-bits devices
+   assign P_DSACK_n[1] = ~(DO_ACK & (MATCH_PMAP | MATCH_MEMERR_ADDR | MATCH_PROM_BOOT | MATCH_PROM | MATCH_MEMX)); // 32-bits devices
    
    
    // LEDS
