@@ -1,17 +1,15 @@
-`timescale 1ns/1ns
+`timescale 1ns / 1ps
 
-`include "tolog.v"
-
-module sun3_fpga(input 	     clk40,
-		 input 	       clk32768, // improveme
-		 output        CLK,
+module sun3_fpga(input         CLK,
+		 input 	       clk32k768, // improveme
+		 input 	       clk4m9152,
 		 input [31:0]  P_ADR_IN,
 		 input [31:0]  P_DATA_IN,
 		 output [31:0] P_DATA_OUT,
 		 input 	       P_DATA_EN,
 		 output        P_BERR_n,
-		 inout 	       P_RESET_n,
-		 inout 	       P_HALT_n,
+		 input 	       P_RESET_n,
+		 output	       P_HALT_n,
 		 input [2:0]   P_FC,
 		 output        P_AVEC_n,
 		 output [2:0]  P_IPL_n,
@@ -31,32 +29,25 @@ module sun3_fpga(input 	     clk40,
 		 input 	       P_REFILL_n,
 		 output        P_BR_n,
 		 input 	       P_BG_n,
-		 output        P_BGACK_n
+		 output        P_BGACK_n,
+		 /* serial */
+		 output        tx,
+		 input 	       rx
 		 );
-   
-   pullup(P_BR_n); // FIXME
-   pullup(P_BGACK_n);
 
-   pullup(P_RESET_n); // FIXME
-   pullup(P_HALT_n); // FIXME
+   wire 		       POR_n;
+   assign POR_n = P_RESET_n;
+   
+   assign P_BR_n = 1'b1; // FIXME ? we have nothing doing DMA yet
+   assign P_BGACK_n = 1'b1;
 
    assign P_AVEC_n = 1'b0;
-   assign P_STERM_n = 1'b1;
+   assign P_STERM_n = 1'b1; // 68k30l has sterm, '020 doesn't
    
    wire 			 EN_DEV;
    wire 			 DISACC;
    
-   assign CLK = clk40; // FIXME really fast Sun3 :-)
-
-   reg 	POR_n;
-   initial
-     begin
-	POR_n = 1'b1;
-	#5 POR_n = 1'b0;
-	#2000 POR_n = 1'b1;
-     end
-   assign P_RESET_n = POR_n; // FIXME
-   assign (strong0, highz1) P_HALT_n = POR_n;
+   assign P_HALT_n = P_RESET_n; // FIXME ?
 
    // layers shortcuts
    wire FC_CTRLLAYER;
@@ -89,7 +80,7 @@ module sun3_fpga(input 	     clk40,
 	     C_S9 <= 1'b0;
 	  end
      end
-   reg C_S4, C_S6, C_S8, C_S10, C_S12, C_S14, TIMEOUT;
+   reg C_S4, C_S6, C_S8, C_S10, C_S12, C_S14, C_S16, C_S18, TIMEOUT;
    always @(posedge CLK)
      begin
 	if (~P_AS_n & C_S3) C_S4 <= 1'b1;
@@ -98,7 +89,9 @@ module sun3_fpga(input 	     clk40,
 	if (~P_AS_n & C_S8) C_S10 <= 1'b1;
 	if (~P_AS_n & C_S10) C_S12 <= 1'b1;
 	if (~P_AS_n & C_S12) C_S14 <= 1'b1;
-	if (~P_AS_n & C_S14) TIMEOUT <= 1'b1; // CHECKME: sun3, too soon?
+	if (~P_AS_n & C_S14) C_S16 <= 1'b1;
+	if (~P_AS_n & C_S16) C_S18 <= 1'b1;
+	if (~P_AS_n & C_S18) TIMEOUT <= 1'b1; // CHECKME: sun3, too soon?
 	if ( P_AS_n)
 	  begin
 	     C_S4 <= 1'b0;
@@ -107,6 +100,8 @@ module sun3_fpga(input 	     clk40,
 	     C_S10 <= 1'b0;
 	     C_S12 <= 1'b0;
 	     C_S14 <= 1'b0;
+	     C_S16 <= 1'b0;
+	     C_S18 <= 1'b0;
 	     TIMEOUT <= 1'b0;
 	  end
      end
@@ -319,6 +314,7 @@ module sun3_fpga(input 	     clk40,
    //assign MATCH_ECCREG   = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hF) & C_S6; // ECC memory only
 
    assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:8] == 11'h000) & C_S6; // "physically" installed, here just the two megs
+   //assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:7] == 12'h000) & C_S6; // "physically" installed, here just 512k
    assign MATCH_MEMX     = (FC_GENERAL) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'h00) & C_S6; // addressable, 16 MiB (?) // CHECKME: sun3 behavior
    //assign MATCH_FBMEMX   = (FC_GENERAL) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF) & C_S6; // addressable // CHECKME: sun3 behavior
 
@@ -355,22 +351,20 @@ module sun3_fpga(input 	     clk40,
 		   .cs_n(1'b0), 
 		   .ale(1'b1),
 		   // Oscillator
-		   .osc_in(clk32768), 
+		   .osc_in(clk32k768), 
 		   .osc_out(),
 		   .int_source(1'b0),
 		   .int_out(timer_int_n),
 		   .vdd_present(1'b1),
-		   .vbackup_present(1'b1),
-		   .use_ext_100hz(1'b0),
-		   .clk_100hz(1'b0));
+		   .vbackup_present(1'b1));
 
    /* the actual memory. For now it's just synchronous RAM */
    /* should probably be moved to some "real" RAM with variable timings, which will require changing the bus mux below */
    wire [31:0] 			 mem_out;
    wire 			 EN_LLBYTE, EN_LUBYTE, EN_ULBYTE, EN_UUBYTE;
    
-   sram_sync_32bits_bytewritable #(.IDX_WIDTH(18)) mainmem (.CLK(CLK),
-							  .idx({ma_pmap2devices[8:0],P_ADR_IN[10:2]}),
+   sram_sync_32bits_bytewritable #(.IDX_WIDTH(19)) mainmem (.CLK(CLK),
+							  .idx({ma_pmap2devices[7:0],P_ADR_IN[12:2]}),
 							  .WRll(WR & MATCH_MEM & EN_LLBYTE),
 							  .WRlu(WR & MATCH_MEM & EN_LUBYTE),
 							  .WRul(WR & MATCH_MEM & EN_ULBYTE),
@@ -387,13 +381,14 @@ module sun3_fpga(input 	     clk40,
    wire [7:0] 			 serial_out;
    wire 			 serial_en;
    wire 			 serial_int_n; // FIXME: DOME
-   wire 			 TxDA, TxDA_EN;
-  
-   tolog tolog(.TxDA(TxDA)); // so we can trace only TxDA in the VCD, pulseview doesn't like too many signals
+   wire 			 TxDA, TxDA_EN, RxDA;
+
+   assign tx = TxDA;
+   assign RxDA = rx;
    
    SCC8530_TOP serial(
 		      // System controls:
-		      .PCLK(CLK), // in // CHECKME: sun3 expect a 4.9152 clock, like sun2
+		      .PCLK(clk4m9152 /* CLK */), // in // CHECKME: sun3 expect a 4.9152 clock, like sun2
 		      
 		      // Bus:
 		      .DATA_IN(P_DATA_IN[31:24]), // in
@@ -414,7 +409,7 @@ module sun3_fpga(input 	     clk40,
 		      .INTn(serial_int_n), // out // Open drain in 5380.
 		      
 		      // Serial Data:
-		      .RxDA(), // in
+		      .RxDA(RxDA), // in
 		      .TxDA(TxDA), // out
 		      .TxDA_EN(TxDA_EN), // out // This is an enhancement over the original chip.
 		      .RxDB(), // in
@@ -456,7 +451,7 @@ module sun3_fpga(input 	     clk40,
    
    SCC8530_TOP kbdms(
 		      // System controls:
-		      .PCLK(CLK), // in // CHECKME: sun3 expect a 4.9152 clock, like sun2
+		      .PCLK(clk4m9152 /* CLK */), // in // CHECKME: sun3 expect a 4.9152 clock, like sun2
 		      
 		      // Bus:
 		      .DATA_IN(P_DATA_IN[31:24]), // in
@@ -554,6 +549,7 @@ module sun3_fpga(input 	     clk40,
    
    // Answering the CPU
    // bus muxer. CPU has priority via DATA_EN, otherwise whomever is matched own the bus
+   // ... with an implicit priority
    assign P_DATA_OUT = P_DATA_EN         ? P_DATA_IN : // loopback
 		       MATCH_CTX       ? {ctx_out, 24'h000000} :
 		       MATCH_SMAP      ? {ia_smap2pmap, 24'h000000} :
@@ -580,15 +576,19 @@ module sun3_fpga(input 	     clk40,
    // For memory this will need updating if we use "real" (variable-timing) memory
    assign DO_ACK = ( // FIXME: 32 vs 16 vs 8 bits, sun3 (or rewire for eevryone to be 32-bits-like ?)
 		     /* reads */
-		     ( P_RW_n & C_S4 & (MATCH_CTX | MATCH_IDPROM | MATCH_SYSEN | MATCH_BERR |              MATCH_PROM_BOOT | MATCH_UARTBYP | MATCH_MEMERR_CTRL | MATCH_MEMERR_ADDR)) | // entering S4, quick devices (RO or WR)
+		     ( P_RW_n & C_S4 & (MATCH_CTX | MATCH_IDPROM | MATCH_SYSEN | MATCH_BERR |              MATCH_PROM_BOOT | MATCH_MEMERR_CTRL | MATCH_MEMERR_ADDR)) | // entering S4, quick devices (RO or WR)
 		     ( P_RW_n & C_S4 & (MATCH_SMAP)) |  // entering S4, quick devices (CTX is 1 clock but went valid after being written, not affected by P_A)
 		     ( P_RW_n & C_S6 & (MATCH_PMAP)) |  // entering S6, physical map needed an extra cycle
-		     ( P_RW_n & C_S8 & (MATCH_MEM | MATCH_KBDMS | MATCH_SERIAL | MATCH_EEPROM | MATCH_TIMER | MATCH_IRQREG | MATCH_PROM)) | // entering S8, devices going through the MMU
+		     ( P_RW_n & C_S8 & (MATCH_MEM | MATCH_EEPROM | MATCH_TIMER | MATCH_IRQREG | MATCH_PROM)) | // entering S8, devices going through the MMU
+		     ( P_RW_n & C_S10 & (MATCH_UARTBYP)) | // entering S4, SLOW serial (1/4 clock)
+		     ( P_RW_n & C_S14 & (MATCH_KBDMS | MATCH_SERIAL)) | // entering S8, SLOW serial (1/4 clock)
 		     /* writes */
-		     (~P_RW_n & C_S4 & (MATCH_CTX |                MATCH_SYSEN |              MATCH_DIAG |                   MATCH_UARTBYP | MATCH_MEMERR_CTRL)) | // entering S4, quick devices (WO or WR)
+		     (~P_RW_n & C_S4 & (MATCH_CTX |                MATCH_SYSEN |              MATCH_DIAG |                   MATCH_MEMERR_CTRL)) | // entering S4, quick devices (WO or WR)
 		     (~P_RW_n & C_S4 & (MATCH_SMAP)) |  // entering S4, quick devices (CTX is 1 clock but went valid after being written, not affected by P_A)
 		     (~P_RW_n & C_S6 & (MATCH_PMAP)) |  // entering S6, physical map needed an extra cycle
-		     (~P_RW_n & C_S8 & (MATCH_MEM | MATCH_KBDMS | MATCH_SERIAL | MATCH_EEPROM | MATCH_TIMER | MATCH_IRQREG)) | // entering S8, devices going through the MMU
+		     (~P_RW_n & C_S8 & (MATCH_MEM | MATCH_EEPROM | MATCH_TIMER | MATCH_IRQREG)) | // entering S8, devices going through the MMU
+		     (~P_RW_n & C_S10 & (MATCH_UARTBYP)) | // entering S4, SLOW serial (1/4 clock)
+		     (~P_RW_n & C_S14 & (MATCH_KBDMS | MATCH_SERIAL)) | // entering S8, SLOW serial (1/4 clock)
 		     
 		     1'b0);
    
@@ -631,21 +631,6 @@ module sun3_fpga(input 	     clk40,
       endcase
       //$flushlog;
    end // always @ (leds)
-
-   // CLOCKS // FIXME
-/* -----\/----- EXCLUDED -----\/-----
-   reg clk20;
-   reg clk10;
-   initial
-     begin
-	clk20 = 1'b0;
-	clk10 = 1'b0;
-     end
-   always @(posedge clk40) clk20 <= ~clk20;
-   always @(posedge clk20) clk10 <= ~clk10;
-   assign C100 = clk10;
-   assign C100_n = ~clk10;
- -----/\----- EXCLUDED -----/\----- */
 
    // interrupts
    wire 	       RTC, V_INT, SCC_IRQ, E_IRQ, PAR_IRQ, S_IRQ;

@@ -1,7 +1,14 @@
-`timescale 1ns / 1ns
+`timescale 1ns / 1ps
 
-module top(input clk40, input clk32768);
-   wire CLK;
+module top(input CLK,
+	   input clk4m9152,
+	   input clk32k768,
+	   /* serial */
+	   output tx,
+	   input rx,
+	   /* reset */
+	   input sys_reset
+	   );
    wire [31:0] ADR_OUT;
    wire [31:0] DATA_IN;
    wire [31:0] DATA_OUT;
@@ -31,8 +38,8 @@ module top(input clk40, input clk32768);
    wire        BGACKn;
    
    
-   sun3_fpga sun3(.clk40(clk40),
-		  .clk32768(clk32768),
+   sun3_fpga sun3(.clk32k768(clk32k768), // improveme
+		  .clk4m9152(clk4m9152),
 		  .CLK(CLK),
         
 		  // Address and data:
@@ -76,21 +83,23 @@ module top(input clk40, input clk32768);
 		  // Bus arbitration control:
 		  .P_BR_n(BRn),
 		  .P_BG_n(BGn),
-		  .P_BGACK_n(BGACKn));
+		  .P_BGACK_n(BGACKn),
+
+		  .tx(tx),
+		  .rx(rx)
+		  
+		  );
    
 		  
    wire        RESET_INn;
    wire        HALT_INn;
    wire        RESET_OUT;
-   wire        HALT_OUTn;
+   wire        HALT_OUTn; // ignored
    
-   assign RESET_INn = P_RESET_n; // FIXME, all that mess
-   wire        RESET_OUT_bis;
-   assign RESET_OUT = RESET_INn ? RESET_OUT_bis : 1'b0;
-   assign (strong0, highz1) P_HALT_n = HALT_OUTn;
+   assign RESET_INn = ~sys_reset; /* board reset => reset CPU */
+   assign P_RESET_n = ~sys_reset & ~RESET_OUT; /* board reset or CPU reset => reset system */
+   
    assign HALT_INn = P_HALT_n;
-  
-   pullup(RESET_INn);
 
    WF68K30L_TOP suska_68k30l (
         .CLK(CLK),
@@ -141,6 +150,6 @@ module top(input clk40, input clk32768);
         .BGACKn(BGACKn) 
     );
 
-   `include "sun3_check.v"
+   `include "sun3-bootrom_check.v"
    
 endmodule
