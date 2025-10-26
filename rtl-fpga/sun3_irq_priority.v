@@ -48,7 +48,7 @@ f16	= !((EN_IRQ7 & !RTC) #
      end
    
    /* try with quick synchronous update */
-   always @(posedge CLK or negedge CLK)
+   always @(posedge CLK)
      begin
 	f19	<= ~((~f16 & EN_IRQ7 & RTC) |
  		     (~f19 & EN_IRQ7) |
