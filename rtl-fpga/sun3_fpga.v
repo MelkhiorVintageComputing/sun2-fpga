@@ -389,8 +389,7 @@ module sun3_fpga(input         CLK,
    wire [31:0] 			 wishbone_out;
    wire 			 w_ack;
    
-   sun3_wishbone_bridge wbridge(.CLK(CLK),
-				.P_ADR_IN(P_ADR_IN),
+   sun3_wishbone_bridge wbridge(.P_ADR_IN(P_ADR_IN),
 				.P_DATA_IN(P_DATA_IN),
 				.P_DATA_OUT(wishbone_out),
 				.P_RW_n(P_RW_n),
