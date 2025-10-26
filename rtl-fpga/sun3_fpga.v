@@ -306,69 +306,57 @@ module sun3_fpga(input         CLK,
    // then on entry in S4 MA becomes valid
    wire 			 MATCH_KBDMS, MATCH_SERIAL, MATCH_EEPROM, MATCH_TIMER;
    wire 			 MATCH_IRQREG, MATCH_PROM;
-   assign MATCH_KBDMS    = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h0) & C_S6;
-   assign MATCH_SERIAL   = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h1) & C_S6;
-   assign MATCH_EEPROM   = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h2) & C_S6;
-   assign MATCH_TIMER    = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h3) & C_S6;
-   assign MATCH_MEMERR_CTRL = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h4) & C_S6 & (P_ADR_IN[2:0] == 3'h0);
-   assign MATCH_MEMERR_ADDR = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h4) & C_S6 & (P_ADR_IN[2:0] == 3'h4);
-   assign MATCH_IRQREG   = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h5) & C_S6;
-   //assign MATCH_I82586   = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h6) & C_S6;
-   //assign MATCH_CMAP     = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h7) & C_S6; // color FB only
+   assign MATCH_KBDMS    = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h0) & C_S6;
+   assign MATCH_SERIAL   = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h1) & C_S6;
+   assign MATCH_EEPROM   = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h2) & C_S6;
+   assign MATCH_TIMER    = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h3) & C_S6;
+   assign MATCH_MEMERR_CTRL = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h4) & C_S6 & (P_ADR_IN[2:0] == 3'h0);
+   assign MATCH_MEMERR_ADDR = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h4) & C_S6 & (P_ADR_IN[2:0] == 3'h4);
+   assign MATCH_IRQREG   = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h5) & C_S6;
+   //assign MATCH_I82586   = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h6) & C_S6;
+   //assign MATCH_CMAP     = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h7) & C_S6; // color FB only
    
-   assign MATCH_PROM     = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h8) & C_S6;
-   //assign MATCH_AMDLE    = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h9) & C_S6;
-   //assign MATCH_SCSI     = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hA) & C_S6;
-   //assign MATCH_RSVD1    = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hB) & C_S6;
-   //assign MATCH_RSVD2    = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hC) & C_S6;
-   //assign MATCH_RSVD3    = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hD) & C_S6;
-   //assign MATCH_DEP      = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hE) & C_S6; // uninstalled Data Encryption Processor
-   //assign MATCH_ECCREG   = (FC_GENERAL) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hF) & C_S6; // ECC memory only
+   assign MATCH_PROM     = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h8) & C_S6;
+   //assign MATCH_AMDLE    = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h9) & C_S6;
+   //assign MATCH_SCSI     = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hA) & C_S6;
+   //assign MATCH_RSVD1    = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hB) & C_S6;
+   //assign MATCH_RSVD2    = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hC) & C_S6;
+   //assign MATCH_RSVD3    = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hD) & C_S6;
+   //assign MATCH_DEP      = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hE) & C_S6; // uninstalled Data Encryption Processor
+   //assign MATCH_ECCREG   = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hF) & C_S6; // ECC memory only
 
-   assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:8] == 11'h000) & C_S6; // "physically" installed, here just the two megs
-   //assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:7] == 12'h000) & C_S6; // "physically" installed, here just 512k
-   assign MATCH_MEMX     = (FC_GENERAL) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'h00) & C_S6; // addressable, 16 MiB (?) // CHECKME: sun3 behavior
-   //assign MATCH_FBMEMX   = (FC_GENERAL) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF) & C_S6; // addressable // CHECKME: sun3 behavior
+   assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:8] == 11'h000) & C_S6; // "physically" installed, here just the two megs
+   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:7] == 12'h000) & C_S6; // "physically" installed, here just 512k
+   assign MATCH_MEMX     = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'h00) & C_S6; // addressable, 16 MiB (?) // CHECKME: sun3 behavior
+   //assign MATCH_FBMEMX   = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF) & C_S6; // addressable // CHECKME: sun3 behavior
 
    /* VME spaces, no default timing, FYI only */
-   //assign MATCH_VME16_32 = (FC_GENERAL) & (TYPE == 2'h2) & !DISACC;
-   //assign MATCH_VME16_16 = (FC_GENERAL) & (TYPE == 2'h2) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF));
-   //assign MATCH_VME16_08 = (FC_GENERAL) & (TYPE == 2'h2) & !DISACC & (ma_pmap2devices[18:3] == 16'hFFFF));
-   assign MATCH_VME32_32 = (FC_GENERAL) & (TYPE == 2'h3) & !DISACC;
-   //assign MATCH_VME32_16 = (FC_GENERAL) & (TYPE == 2'h3) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF));
-   //assign MATCH_VME32_08 = (FC_GENERAL) & (TYPE == 2'h3) & !DISACC & (ma_pmap2devices[18:3] == 16'hFFFF));
+   //assign MATCH_VME16_32 = (EN_DEV) & (TYPE == 2'h2) & !DISACC;
+   //assign MATCH_VME16_16 = (EN_DEV) & (TYPE == 2'h2) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF));
+   //assign MATCH_VME16_08 = (EN_DEV) & (TYPE == 2'h2) & !DISACC & (ma_pmap2devices[18:3] == 16'hFFFF));
+   assign MATCH_VME32_32 = (EN_DEV) & (TYPE == 2'h3) & !DISACC;
+   //assign MATCH_VME32_16 = (EN_DEV) & (TYPE == 2'h3) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF));
+   //assign MATCH_VME32_08 = (EN_DEV) & (TYPE == 2'h3) & !DISACC & (ma_pmap2devices[18:3] == 16'hFFFF));
    /* won't even bother with the FPA */
 
    wire [7:0] 			 timer_out;
    wire 			 timer_bus_en;
    wire 			 timer_int_n;
    
-/* -----\/----- EXCLUDED -----\/-----
-   ttl_icm7170_alt timerchip(.CLK(CLK),
-			     .idx(P_ADR_IN[4:0]),
-			     .din(P_DATA_IN[31:24]),
-			     .dout(timer_out),
-			     .RD(MATCH_TIMER & RD),
-			     .WR(MATCH_TIMER & WR),
-			     .int_n(timer_int_n));
- -----/\----- EXCLUDED -----/\----- */
-   
- icm7170 timerchip(.rst_n(POR_n),
-		   .a_in(P_ADR_IN[4:0]),
-		   .d_bus_in(P_DATA_IN[31:24]),
-		   .d_bus_out(timer_out),
-		   .d_bus_en(timer_bus_en),
-		   .rd_n(~MATCH_TIMER | ~RD),
-		   .wr_n(~MATCH_TIMER | ~WR),
-		   .cs_n(1'b0), 
-		   .ale(1'b1),
+ icm7170 timerchip(.RESETn(POR_n),
+		   .A(P_ADR_IN[4:0]),
+		   .D_IN(P_DATA_IN[31:24]),
+		   .D_OUT(timer_out),
+		   .D_EN(timer_bus_en),
+		   .RD(~MATCH_TIMER | ~RD),
+		   .WR(~MATCH_TIMER | ~WR),
+		   .CS(1'b0), 
+		   .ALE(1'b1),
 		   // Oscillator
-		   .osc_in(clk32k768), 
-		   .osc_out(),
-		   .int_source(1'b0),
-		   .int_out(timer_int_n),
-		   .vdd_present(1'b1),
-		   .vbackup_present(1'b1));
+		   .OSC_IN(clk32k768), 
+		   .OSC_OUT(),
+		   .INT_SOURCE(1'b0),
+		   .INTERRUPT(timer_int_n));
 
    wire 			 EN_LLBYTE, EN_LUBYTE, EN_ULBYTE, EN_UUBYTE;
 
