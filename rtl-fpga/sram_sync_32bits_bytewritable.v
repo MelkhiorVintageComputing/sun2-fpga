@@ -1,4 +1,4 @@
-`timescale 1ns/1ns
+`timescale 1ns / 1ps
 
 module sram_sync_32bits_bytewritable #(parameter IDX_WIDTH=18) (input CLK,
 								input [IDX_WIDTH-1:0] idx,
@@ -9,7 +9,7 @@ module sram_sync_32bits_bytewritable #(parameter IDX_WIDTH=18) (input CLK,
 								input [31:0] 	      din,
 								output [31:0] 	      dout
 								);
-   
+
    sram_sync #(.DATA_WIDTH(8), .IDX_WIDTH(IDX_WIDTH)) llbyte (.CLK(CLK),
 							      .idx(idx),
 							      .WR(WRll),
