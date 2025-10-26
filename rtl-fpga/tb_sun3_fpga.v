@@ -22,7 +22,18 @@ module tb();
 	   .tx(tx),
 	   .rx(rx),
 	   .leds(),
-	   .sys_reset(sys_reset));
+	   .sys_reset(sys_reset),
+	   
+	   // wishbone
+	   .wb_cyc_o(),
+	   .wb_stb_o(),
+	   .wb_adr_o(),
+	   .wb_dat_o(),
+	   .wb_sel_o(),
+	   .wb_we_o(),
+	   .wb_dat_i(),
+	   .wb_ack_i()
+	   );
 
    always
      begin

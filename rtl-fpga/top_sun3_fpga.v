@@ -1,15 +1,25 @@
 `timescale 1ns / 1ps
 
 module top(input CLK,
-	   input 	clk4m9152,
-	   input 	clk32k768,
+	   input 	 clk4m9152,
+	   input 	 clk32k768,
 	   /* serial */
-	   output 	tx,
-	   input 	rx,
+	   output 	 tx,
+	   input 	 rx,
 	   /* leds */
-	   output [7:0] leds,
+	   output [7:0]  leds,
 	   /* reset */
-	   input 	sys_reset
+	   input 	 sys_reset,
+
+	   /* wishbone */
+	   output 	 wb_cyc_o,
+	   output 	 wb_stb_o,
+	   output [29:0] wb_adr_o,
+	   output [31:0] wb_dat_o,
+	   output [3:0]  wb_sel_o,
+	   output 	 wb_we_o,
+	   input [31:0]  wb_dat_i,
+	   input 	 wb_ack_i
 	   );
    wire [31:0] ADR_OUT;
    wire [31:0] DATA_IN;
@@ -91,16 +101,16 @@ module top(input CLK,
 		  .rx(rx),
 
 		  .leds(leds),
-		  
+				
 		  // wishbone
-		  .wb_cyc_o(),
-		  .wb_stb_o(),
-		  .wb_adr_o(),
-		  .wb_dat_o(),
-		  .wb_sel_o(),
-		  .wb_we_o(),
-		  .wb_dat_i(),
-		  .wb_ack_i()
+		  .wb_cyc_o(wb_cyc_o),
+		  .wb_stb_o(wb_stb_o),
+		  .wb_adr_o(wb_adr_o),
+		  .wb_dat_o(wb_dat_o),
+		  .wb_sel_o(wb_sel_o),
+		  .wb_we_o(wb_we_o),
+		  .wb_dat_i(wb_dat_i),
+		  .wb_ack_i(wb_ack_i)
 		  );
    
 		  
