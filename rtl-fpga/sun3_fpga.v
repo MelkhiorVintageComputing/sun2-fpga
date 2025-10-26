@@ -343,19 +343,15 @@ module sun3_fpga(input         CLK,
    wire 			 timer_bus_en;
    wire 			 timer_int_n;
    
- icm7170 timerchip(.RESETn(POR_n),
+ icm7170 timerchip(.CLK(CLK),
+		   .RESETn(POR_n),
 		   .A(P_ADR_IN[4:0]),
 		   .D_IN(P_DATA_IN[31:24]),
 		   .D_OUT(timer_out),
 		   .D_EN(timer_bus_en),
 		   .RD(~MATCH_TIMER | ~RD),
 		   .WR(~MATCH_TIMER | ~WR),
-		   .CS(1'b0), 
-		   .ALE(1'b1),
-		   // Oscillator
-		   .OSC_IN(clk32k768), 
-		   .OSC_OUT(),
-		   .INT_SOURCE(1'b0),
+		   .CS(1'b0),
 		   .INTERRUPT(timer_int_n));
 
    wire 			 EN_LLBYTE, EN_LUBYTE, EN_ULBYTE, EN_UUBYTE;
