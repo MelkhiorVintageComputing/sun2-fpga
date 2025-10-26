@@ -157,7 +157,7 @@ module icm7170 #(parameter FREQ=19660800)
    // Time counter updates
    wire run_enable = command_reg[3];  // Run/Stop bit
    wire hour_format = command_reg[2]; // 12/24 hour format
-   reg 	clear_irq_needed;
+   reg [1:0] clear_irq_needed;
    
    
    always @(posedge CLK) begin
@@ -172,13 +172,13 @@ module icm7170 #(parameter FREQ=19660800)
          counter_day_of_week <= 8'd0;
          interrupt_status_reg <= 8'd0;
          data_latched <= 1'b0;
-	 clear_irq_needed <= 1'b0;
+	 clear_irq_needed <= 2'b0;
 	 command_reg <= 8'b00000101;
       end else begin
 	 interrupt_status_reg[7] <= any_interrupt;
-	 if (clear_irq_needed) begin
-	    interrupt_status_reg <= 8'h00;
-	    clear_irq_needed <= 1'b0;
+	 if (clear_irq_needed > 2'b00) begin
+	    clear_irq_needed <= clear_irq_needed - 1;
+	    if (clear_irq_needed == 2'b01) interrupt_status_reg <= 8'h00;
 	 end
 	 if (~RD & ~CS) begin
 	    if (A == 5'h00) begin
@@ -194,7 +194,7 @@ module icm7170 #(parameter FREQ=19660800)
                data_latched <= 1'b1; // checkme: cannot go to 0 except on reset?
 	    end // if (A == 5'h00)
 	    if (A == 5'h10) begin
-	       clear_irq_needed <= 1'b1;
+	       clear_irq_needed <= 2'b10; // wipe out in 2 cycles, after the host got the data
 	    end
 	 end
 	 if (~WR & ~CS) begin
