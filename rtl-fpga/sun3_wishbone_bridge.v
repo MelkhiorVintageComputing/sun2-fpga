@@ -29,7 +29,7 @@ module sun3_wishbone_bridge (
    
    assign wb_cyc_o = MATCH_MEM | MATCH_VME32_32;
    assign wb_stb_o = MATCH_MEM | MATCH_VME32_32;
-   assign wb_addr_o = MATCH_MEM ? {P_ADR_IN[31:2]} : // wishbone word-addressed
+   assign wb_adr_o = MATCH_MEM ? {P_ADR_IN[31:2]} : // wishbone word-addressed
 		      MATCH_VME32_32 ?  {P_ADR_IN[31:2]} :
 		      32'hC0FFEEEE;
    
