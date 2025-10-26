@@ -1,4 +1,4 @@
-`timescale 1ns/1ns
+`timescale 1ns / 1ps
 
 module sram_sync_16bits_bytewritable #(parameter IDX_WIDTH=18) (input CLK,
 								input [IDX_WIDTH-1:0] idx,
