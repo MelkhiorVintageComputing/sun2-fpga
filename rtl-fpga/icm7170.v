@@ -1,4 +1,4 @@
-`timescale 1ns/1ps
+`timescale 1ns / 1ps
 // icm7170.v
 // Behavioral Verilog model of the ICM7170 RTC (functional simulation model).
 
@@ -21,11 +21,7 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
 		output reg   int_out, // interrupt output (active LOW in this model)
 		// Power pins (informational — behavior not modeled electrically)
 		input 	     vdd_present, // when 0, chip is in backup / low-power (user may drive)
-		input 	     vbackup_present,
-		// Optional: force external 100Hz tick (useful in tests). If 1, clk_100hz is used,
-		// otherwise internal divider uses osc_in and command reg freq select.
-		input 	     use_ext_100hz,
-		input 	     clk_100hz
+		input 	     vbackup_present
 		);
    
    // --------------------------- Parameters / constants -------------------------
@@ -71,7 +67,7 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
    
    // Latch for consistent read-after-read behavior
    reg [7:0] 		     latch_time [0:7]; // latched snapshot of counters when 100th is read
-   reg 			     data_latched;
+   reg 			     data_latched; // written but neverread ?!?
    
    // Command/Control
    reg [7:0] 		     cmd_reg;  // write-only at 11h: D5 test, D4 int_en, D3 run/stop, D2 24/12, D1-D0 freq bits
@@ -205,38 +201,38 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
          // increment 100th
          cnt_100th = cnt_100th + 1;
          flag_1_100s = 1; // 1/100th increment flag
-         if (cnt_100th >= 99) begin
+         if (cnt_100th >= 100) begin
             cnt_100th = 0;
             // increment seconds
             cnt_sec = cnt_sec + 1;
             flag_1_1s = 1; // 1s flag
             // 1/10s: if 100th low nibble 0 (i.e., every 10 increments)
-            if ((cnt_100th % 10) == 9) begin
+            if ((cnt_100th % 10) == 0) begin
                flag_1_10s = 1; // 1/10 sec flag (simplified)
             end
 	    
-            if (cnt_sec >= 59) begin
+            if (cnt_sec >= 60) begin
                cnt_sec = 0;
                cnt_min = cnt_min + 1;
                flag_1_1m = 1; // minute flag
-               if (cnt_min >= 59) begin
+               if (cnt_min >= 60) begin
                   cnt_min = 0;
                   cnt_hour = cnt_hour + 1;
                   flag_1_1h = 1; // hour flag
                   if (cmd_reg[2] == 0) begin
                      // 24-hour mode
-                     if (cnt_hour >= 23) begin
+                     if (cnt_hour >= 24) begin
                         cnt_hour = 0;
                         // next day
                         cnt_day = (cnt_day + 1) % 7;
                         cnt_date = cnt_date + 1;
-                        if (cnt_date >= days_in_month(cnt_month,cnt_year)) begin
+                        if (cnt_date > days_in_month(cnt_month,cnt_year)) begin
                            cnt_date = 1;
                            cnt_month = cnt_month + 1;
-                           if (cnt_month >= 12) begin
+                           if (cnt_month > 12) begin
                               cnt_month = 1;
                               cnt_year = cnt_year + 1;
-                              if (cnt_year >= 99) cnt_year = 0;
+                              if (cnt_year >= 100) cnt_year = 0;
                            end
                         end
                         flag_1_1d = 1; // day flag
@@ -248,13 +244,13 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
                         cnt_hour = 0;
                         cnt_day = (cnt_day + 1) % 7;
                         cnt_date = cnt_date + 1;
-                        if (cnt_date >= days_in_month(cnt_month,cnt_year)) begin
+                        if (cnt_date > days_in_month(cnt_month,cnt_year)) begin
                            cnt_date = 1;
                            cnt_month = cnt_month + 1;
-                           if (cnt_month >= 12) begin
+                           if (cnt_month > 12) begin
                               cnt_month = 1;
                               cnt_year = cnt_year + 1;
-                              if (cnt_year >= 99) cnt_year = 0;
+                              if (cnt_year >= 100) cnt_year = 0;
                            end
                         end
                         flag_1_1d = 1; // day flag
@@ -264,25 +260,25 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
             end
          end // if (cnt_100th >= 99)
 
-	 int_status = int_status |
+	int_status <= int_status |
 		      (flag_1_100s ? 8'h02 : 8'h00) |
 		      (flag_1_10s  ? 8'h04 : 8'h00) |
 		      (flag_1_1s   ? 8'h08 : 8'h00) |
 		      (flag_1_1m   ? 8'h10 : 8'h00) |
 		      (flag_1_1h   ? 8'h20 : 8'h00) |
 		      (flag_1_1d   ? 8'h40 : 8'h00);
-	 
-         // After the small increments, evaluate alarm compare
-	 // this is off by 1/100th ? (as it will check the old value)
-         do_alarm_compare();
 	
-         update_interrupt_output(.new_int_status(int_status |
-						 (flag_1_100s ? 8'h02 : 8'h00) |
-						 (flag_1_10s  ? 8'h04 : 8'h00) |
-						 (flag_1_1s   ? 8'h08 : 8'h00) |
-						 (flag_1_1m   ? 8'h10 : 8'h00) |
-						 (flag_1_1h   ? 8'h20 : 8'h00) |
-						 (flag_1_1d   ? 8'h40 : 8'h00)));
+        // After the small increments, evaluate alarm compare
+	// this is off by 1/100th ? (as it will check the old value)
+        do_alarm_compare();
+	
+        update_interrupt_output(.new_int_status(int_status |
+						(flag_1_100s ? 8'h02 : 8'h00) |
+						(flag_1_10s  ? 8'h04 : 8'h00) |
+						(flag_1_1s   ? 8'h08 : 8'h00) |
+						(flag_1_1m   ? 8'h10 : 8'h00) |
+						(flag_1_1h   ? 8'h20 : 8'h00) |
+						(flag_1_1d   ? 8'h40 : 8'h00)));
      end
    endtask
    
@@ -313,6 +309,7 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
    // Evaluate whether to assert interrupt output (int_out)
    task update_interrupt_output(input [7:0] new_int_status);
       reg any_enabled_and_flag;
+      integer b;
       begin
 	 // The datasheet: Interrupt output is enabled when command.D4 (interrupt enable) and
 	 // at least one mask bit set that has corresponding status flag set. Also reading status resets output.
@@ -320,7 +317,7 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
 	 // mask bits in int_mask D1..D6 correspond to day..1/100 etc as spec - map similarly:
 	 // We'll consider D0 alarm, D1 1/100, D2 1/10, D3 1s, D4 min, D5 hr, D6 day
 	 // status bits same mapping D0 alarm, D1 1/100, D2 1/10, D3 1s, D4 min, D5 hr, D6 day
-	 for (integer b=0; b<=6; b=b+1) begin
+	 for (b=0; b<=6; b=b+1) begin
             if (int_mask[b] && new_int_status[b]) any_enabled_and_flag = 1;
 	 end
 	 
@@ -335,7 +332,6 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
    endtask
    
    // --------------------------- Oscillator / 100Hz tick generation -------------
-   // We support either using external clk_100hz (use_ext_100hz=1) or derive from osc_in and cmd_reg frequency
    
    assign osc_out = osc_in; // simple passthrough for simulation
    
@@ -358,32 +354,21 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
          cycle_count <= 0;
          rem_accum <= 0;
       end else begin
-         if (!use_ext_100hz) begin
-            // accumulate cycles; base_div cycles normally, occasionally +1 when remainder accumulates >=100
-            cycle_count = cycle_count + 1;
-            // produce tick when cycle_count >= base_div + extra
-            extra = (rem_accum >= 100) ? 1 : 0;
-            if (cycle_count >= (base_div + extra)) begin
-               cycle_count = 0;
-               if (extra) rem_accum = rem_accum - 100;
-               rem_accum = rem_accum + rem_div;
-               tick_100hz <= 1;
-            end else tick_100hz <= 0;
-         end
-      end
-   end
-   
-   // If using external 100Hz, drive tick_100hz from clk_100hz (posedge)
-   always @(posedge clk_100hz or negedge rst_n) begin
-      if (!rst_n) begin
-         tick_100hz <= 0;
-      end else begin
-         if (use_ext_100hz) tick_100hz <= 1;
+         // accumulate cycles; base_div cycles normally, occasionally +1 when remainder accumulates >=100
+         cycle_count = cycle_count + 1;
+         // produce tick when cycle_count >= base_div + extra
+         extra = (rem_accum >= 100) ? 1 : 0;
+         if (cycle_count >= (base_div + extra)) begin
+            cycle_count = 0;
+            if (extra) rem_accum = rem_accum - 100;
+            rem_accum = rem_accum + rem_div;
+            tick_100hz <= 1;
+         end else tick_100hz <= 0;
       end
    end
    
    // Clear tick flag in next simulation delta to allow one-shot behavior
-   always @(negedge osc_in or negedge clk_100hz or negedge rst_n) begin
+   always @(negedge osc_in or negedge rst_n) begin
       if (!rst_n) begin
          tick_100hz <= 0;
       end else begin
@@ -459,7 +444,7 @@ module icm7170 (input 	 rst_n, // active low synchronous reset for simulation co
    
    //  data bus driver
    assign d_bus_out = d_out;
-   assign d_bud_en = drive_bus;
+   assign d_bus_en = drive_bus;
    
    reg [7:0] wdata;
    // Writes: capture data when WR goes low with CS low
