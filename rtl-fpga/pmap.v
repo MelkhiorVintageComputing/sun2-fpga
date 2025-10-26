@@ -26,5 +26,6 @@ module pmap_sram
 									   .dout(ps_out)
 									   );
    
-endmodule;
+endmodule // pmap_sram
+
 

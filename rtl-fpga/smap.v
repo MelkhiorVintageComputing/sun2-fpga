@@ -13,4 +13,4 @@ module smap_sram
 								     .WR(WR),
 								     .din(ia_in),
 								     .dout(ia_out)						  );
-endmodule; // smap_sync
+endmodule // smap_sync

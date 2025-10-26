@@ -9,7 +9,7 @@ module bootrom32(input CLK,
     begin
        case(idx)
 `include "bootrom_patched_32bits.v"
-       endcase; // case (idx)
+       endcase // case (idx)
     end
 
   endmodule // bootrom
