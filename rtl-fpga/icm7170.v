@@ -161,19 +161,15 @@ wire       effective_cs = (ALE) ? CS : latched_cs;
 // Time Counter Logic
 //==============================================================================
 
-// BCD increment function
-function [7:0] bcd_increment;
-    input [7:0] bcd_val;
+// Simple binary increment function
+function [7:0] binary_increment;
+    input [7:0] val;
     input [7:0] max_val;
     begin
-        if (bcd_val >= max_val) begin
-            bcd_increment = 8'd0;
+        if (val >= max_val) begin
+            binary_increment = 8'd0;
         end else begin
-            if ((bcd_val & 4'hF) == 4'h9) begin
-                bcd_increment = (bcd_val & 8'hF0) + 8'h10;
-            end else begin
-                bcd_increment = bcd_val + 1;
-            end
+            binary_increment = val + 1;
         end
     end
 endfunction
@@ -194,34 +190,33 @@ always @(posedge clk_100hz or negedge RESETn) begin
         counter_day_of_week <= 8'd0;
         interrupt_status_reg <= 8'd0;
     end else if (run_enable) begin
-        // Hundredths of seconds counter
-        counter_hundredths <= bcd_increment(counter_hundredths, 8'd99);
+        // Hundredths of seconds counter (0-99)
+        counter_hundredths <= binary_increment(counter_hundredths, 8'd99);
         if (counter_hundredths == 8'd99) begin
             interrupt_status_reg[1] <= 1'b1;  // 1/100 sec flag
             
-            // Seconds counter
-            counter_seconds <= bcd_increment(counter_seconds, 8'd59);
+            // Seconds counter (0-59)
+            counter_seconds <= binary_increment(counter_seconds, 8'd59);
             if (counter_seconds == 8'd59) begin
                 interrupt_status_reg[3] <= 1'b1;  // Seconds flag
                 
-                // Minutes counter
-                counter_minutes <= bcd_increment(counter_minutes, 8'd59);
+                // Minutes counter (0-59)
+                counter_minutes <= binary_increment(counter_minutes, 8'd59);
                 if (counter_minutes == 8'd59) begin
                     interrupt_status_reg[4] <= 1'b1;  // Minutes flag
                     
                     // Hours counter
-                    if (hour_format) begin  // 24-hour format
-                        counter_hours <= bcd_increment(counter_hours, 8'd23);
+                    if (hour_format) begin  // 24-hour format (0-23)
+                        counter_hours <= binary_increment(counter_hours, 8'd23);
                         if (counter_hours == 8'd23) begin
                             interrupt_status_reg[5] <= 1'b1;  // Hours flag
                             // Day rollover logic would go here
                         end
-                    end else begin  // 12-hour format
-                        // 12-hour format logic (simplified)
-                        if (counter_hours == 8'h12) begin
-                            counter_hours <= 8'h01;
+                    end else begin  // 12-hour format (1-12)
+                        if (counter_hours == 8'd12) begin
+                            counter_hours <= 8'd1;
                         end else begin
-                            counter_hours <= bcd_increment(counter_hours & 8'h7F, 8'h12);
+                            counter_hours <= binary_increment(counter_hours & 8'h7F, 8'd12);
                         end
                     end
                 end
@@ -229,8 +224,7 @@ always @(posedge clk_100hz or negedge RESETn) begin
         end
         
         // Set 10Hz interrupt flag every 10 hundredths
-        if ((counter_hundredths & 8'h0F) == 8'h09 && 
-            (counter_hundredths & 8'hF0) != 8'h90) begin
+        if (counter_hundredths % 10 == 9) begin
             interrupt_status_reg[2] <= 1'b1;  // 1/10 sec flag
         end
     end
