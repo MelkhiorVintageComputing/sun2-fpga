@@ -21,6 +21,7 @@ module tb();
 	   .clk4m9152(clk4m9152),
 	   .tx(tx),
 	   .rx(rx),
+	   .leds(),
 	   .sys_reset(sys_reset));
 
    always
