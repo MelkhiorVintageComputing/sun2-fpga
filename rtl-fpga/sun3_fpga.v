@@ -632,7 +632,7 @@ module sun3_fpga(input         CLK,
 `ifdef MEM_SIM_ONLY
 		     ( P_RW_n & C_S8 & (MATCH_MEM)) |
 `else
-		     ( P_RW_N & w_ack & (MATCH_MEM)) | // wishbone
+		     ( P_RW_n & w_ack & (MATCH_MEM)) | // wishbone
 `endif
 		     /* writes */
 		     (~P_RW_n & C_S4 & (MATCH_CTX |                MATCH_SYSEN |              MATCH_DIAG |                   MATCH_MEMERR_CTRL)) | // entering S4, quick devices (WO or WR)
@@ -644,7 +644,7 @@ module sun3_fpga(input         CLK,
 `ifdef MEM_SIM_ONLY
 		     (~P_RW_n & C_S8 & (MATCH_MEM)) |
 `else
-		     (~P_RW_N & w_ack & (MATCH_MEM)) | // wishbone
+		     (~P_RW_n & w_ack & (MATCH_MEM)) | // wishbone
 `endif
 		     1'b0);
    
