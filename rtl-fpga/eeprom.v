@@ -14,7 +14,7 @@ module eeprom(input CLK,
 	   begin
 	      case (a)
 		11'h014: sram[a] <= 8'h02; // memory installed
-		11'h015: sram[a] <= 8'h01; // memory tested
+		11'h015: sram[a] <= 8'h00; // memory tested
 		11'h016: sram[a] <= 8'h00; // 1152x900
 		// 0x17: watchdog action ?
 		11'h018: sram[a] <= 8'h12; // boot from eeprom-specified device 
