@@ -1,4 +1,4 @@
-`timescale 1ns / 1ns
+`timescale 1ns / 1ps
 
 module idprom_sun3(input CLK,
 		   input [4:0] 	    idx,

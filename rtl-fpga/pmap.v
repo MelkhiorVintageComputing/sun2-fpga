@@ -1,4 +1,4 @@
-`timescale 1ns / 1ns
+`timescale 1ns / 1ps
 
 module pmap_sram
   #(parameter MA_DATA_WIDTH=12, PS_DATA_WIDTH=12, IDX_WIDTH=12)

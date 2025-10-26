@@ -1,4 +1,4 @@
-`timescale 1ns/1ns
+`timescale 1ns / 1ps
 
 module ctx_reg_sun3 #(parameter VALID_BITS=3)(input CLK,
 					      input [7:0]     din,

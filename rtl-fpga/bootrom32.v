@@ -1,4 +1,4 @@
-`timescale 1ns/1ns
+`timescale 1ns / 1ps
 
 module bootrom32(input CLK,
 		 input [13:0] 	   idx,

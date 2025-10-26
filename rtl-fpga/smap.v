@@ -1,4 +1,4 @@
-`timescale 1ns / 1ns
+`timescale 1ns / 1ps
 module smap_sram
   #(parameter DATA_WIDTH=8, IDX_WIDTH=12)
    (input CLK,

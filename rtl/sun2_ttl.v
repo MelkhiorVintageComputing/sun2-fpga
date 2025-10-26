@@ -326,7 +326,7 @@ assign AS = ~PX_AS_n;
       
    reg [5:1] LA1_5 = 0;
    always @(posedge AS)
-     LA1_5 <= {P_A5, P_A4, P_A3, P_A2, P_A1 };
+     LA1_5 <= {P_A5, P_A4, P_A3, P_A2, P_A1 }; // U104
 
    assign DS_n = ~(~PX_UDS_n | ~PX_LDS_n);
    assign RW = ~PX_RW_n;
@@ -918,12 +918,7 @@ wire REN_n_IGNORED;
 		     .OE_n(C_S6_n), .RESET_n(P_RESET_n));
 
    wire WR_PMAP0X_n;
-//   assign WR_PMAP0X_n = ~(~C_S6_n | ~WR_PMAP0L_n);
-//assign WR_PMAP0X_n = ~C_S6_n & ~WR_PMAP0L_n;
-//assign WR_PMAP0X_n = /*C_S6_n &*/ WR_PMAP0L_n;
-//assign WR_PMAP0X_n = ~(~C_S6_n | WR_PMAP0L_n);
-
-//   assign WR_PMAP0X_n = ~(~C_S6_n & ~WR_PMAP0L_n);
+   //assign WR_PMAP0X_n = ~(~C_S6_n | ~WR_PMAP0L_n);
    assign WR_PMAP0X_n = WR_PMAP0L_n;
 		   
    // Protection decoder

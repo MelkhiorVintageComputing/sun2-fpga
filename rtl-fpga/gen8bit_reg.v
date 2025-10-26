@@ -1,4 +1,4 @@
-`timescale 1ns / 1ns
+`timescale 1ns / 1ps
 
 module gen8bit_reg(input CLK,
 		   input [7:0] 	    din,

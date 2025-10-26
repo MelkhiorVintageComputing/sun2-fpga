@@ -1,4 +1,4 @@
-`timescale 1ns/1ns
+`timescale 1ns / 1ps
 
 module ctx_reg(input CLK,
 	       input [15:0] 	 din,
