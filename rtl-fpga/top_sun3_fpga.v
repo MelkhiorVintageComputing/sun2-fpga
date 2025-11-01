@@ -9,6 +9,7 @@ module top(input CLK,
 	   /* leds, debug */
 	   output [7:0]  leds,
 	   output 	 en_boot,
+	   input 	 diag_switch,
 	   //output [31:0] PC,
 	   /* reset */
 	   input 	 sys_reset,
@@ -57,6 +58,7 @@ module top(input CLK,
    sun3_fpga sun3(.clk32k768(clk32k768), // improveme
 		  .clk4m9152(clk4m9152),
 		  .CLK(CLK),
+		  .sys_reset(sys_reset),
         
 		  // Address and data:
 		  .P_ADR_IN(ADR_OUT),  // OUT for CPU, IN for sun3
@@ -106,6 +108,7 @@ module top(input CLK,
 
 		  .leds(leds_n),
 		  .en_boot(en_boot),
+		  .diag_switch(diag_switch),
 				
 		  // wishbone
 		  .wb_cyc_o(wb_cyc_o),
@@ -128,7 +131,7 @@ module top(input CLK,
    assign RESET_INn = ~sys_reset; /* board reset => reset CPU */
    assign P_RESET_n = ~sys_reset & ~RESET_OUT; /* board reset or CPU reset => reset system */
    
-   assign HALT_INn = ~sys_reset; /* board reset => reset CPU (HALTn seem needed) */
+   assign HALT_INn = ~sys_reset & ~RESET_OUT; /* board reset => reset CPU (HALTn seem needed) */
 
    WF68K30L_TOP suska_68k30l (
         .CLK(CLK),

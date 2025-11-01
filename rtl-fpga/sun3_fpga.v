@@ -5,12 +5,13 @@
 module sun3_fpga(input         CLK,
 		 input 	       clk32k768, // improveme
 		 input 	       clk4m9152,
+		 input 	       sys_reset, // board reset => also CPU reset
 		 input [31:0]  P_ADR_IN,
 		 input [31:0]  P_DATA_IN,
 		 output [31:0] P_DATA_OUT,
 		 input 	       P_DATA_EN,
 		 output        P_BERR_n,
-		 input 	       P_RESET_n,
+		 input 	       P_RESET_n, // CPU reset, not full board
 		 output        P_HALT_n,
 		 input [2:0]   P_FC,
 		 output        P_AVEC_n,
@@ -37,7 +38,8 @@ module sun3_fpga(input         CLK,
 		 input 	       rx,
 		 /* leds, debug */
 		 output [7:0]  leds,
-		 output en_boot,
+		 output        en_boot,
+		 input 	       diag_switch,
 		 /* wishbone */
 		 output        wb_cyc_o,
 		 output        wb_stb_o,
@@ -48,9 +50,6 @@ module sun3_fpga(input         CLK,
 		 input [31:0]  wb_dat_i,
 		 input 	       wb_ack_i
 		 );
-
-   wire 		       POR_n;
-   assign POR_n = P_RESET_n;
    
    assign P_BR_n = 1'b1; // FIXME ? we have nothing doing DMA yet
    assign P_BGACK_n = 1'b1;
@@ -259,7 +258,7 @@ module sun3_fpga(input         CLK,
 		    .din(berr_in),
 		    .WR(BERRCLK),
 		    .dout(berr_out),
-		    .CLR_n(POR_n /*1'b1 */) /* FIXME: how is supposed to be initialized ??? */
+		    .CLR_n(~sys_reset /*1'b1 */) /* FIXME: how is supposed to be initialized ??? */
 		    );
    assign BERRCLK	= (C_S8 & (BERR_P | BERR_T | BERR_V)); // FIXME: timing?
    assign BERR	        = (C_S8 & (BERR_P | BERR_T | BERR_V)); // FIXME: timing?
@@ -271,12 +270,12 @@ module sun3_fpga(input         CLK,
 		   .din(P_DATA_IN[31:24]),
 		   .WR(WR & MATCH_SYSEN & C_S4),
 		   .dout(sys_out),
-		   .CLR_n(P_RESET_n)
+		   .CLR_n(~sys_reset) // reset by INIT- on real HW
 		   );
    /* split the 8 system bits by name */
    wire 			 EN_DIAG, EN_FPA, EN_COPY, EN_VIDEO, EN_CACHE, EN_SDVMA, EN_FPP, EN_BOOTn;
    
-   assign EN_DIAG  = sys_out[0];
+   assign EN_DIAG  = diag_switch; //sys_out[0];
    assign EN_FPA   = sys_out[1]; // we repurpose as 'enable wishbone' for a one-shot trigger during early boot
    assign EN_COPY  = sys_out[2];
    assign EN_VIDEO = sys_out[3];
@@ -356,7 +355,7 @@ module sun3_fpga(input         CLK,
    wire 			 timer_int_n;
    
  icm7170 timerchip(.CLK(CLK),
-		   .RESETn(POR_n),
+		   .RESETn(~sys_reset), // no reset on real HW
 		   .A(P_ADR_IN[4:0]),
 		   .D_IN(P_DATA_IN[31:24]),
 		   .D_OUT(timer_out),
@@ -386,7 +385,7 @@ module sun3_fpga(input         CLK,
    wire 			 w_ack;
    
    sun3_wishbone_bridge wbridge(.CLK(CLK),
-				.RESET_n(P_RESET_n),
+				.RESET_n(~sys_reset), // don't reset on CPU-only reset, don't want to loose memory access then
 				.SET_ENABLE(EN_FPA),
 				.P_ADR_IN({ma_pmap2devices, P_ADR_IN[12:0]}), // full physical
 				.P_DATA_IN(P_DATA_IN),
@@ -438,8 +437,8 @@ module sun3_fpga(input         CLK,
 		      
 		      // Bus controls:
 		      .CEn(1'b0), // in
-		      .RDn(((~MATCH_SERIAL & ~MATCH_UARTBYP) | ~RD) & POR_n), // in // POR_n for HW reset
-		      .WRn(((~MATCH_SERIAL & ~MATCH_UARTBYP) | ~WR) & POR_n), // in // POR_n for HW reset
+		      .RDn(((~MATCH_SERIAL & ~MATCH_UARTBYP) | ~RD) & ~sys_reset), // in // ~sys_rese for HW reset, INIT- on real HW
+		      .WRn(((~MATCH_SERIAL & ~MATCH_UARTBYP) | ~WR) & ~sys_reset), // in // ~sys_rese for HW reset, INIT- on real HW
 		      .A_Bn(P_ADR_IN[2]), // in
 		      .D_Cn(P_ADR_IN[1]), // in
 		      
@@ -501,8 +500,8 @@ module sun3_fpga(input         CLK,
 		      
 		      // Bus controls:
 		      .CEn(1'b0), // in
-		      .RDn((~MATCH_KBDMS | ~RD) & POR_n), // in
-		      .WRn((~MATCH_KBDMS | ~WR) & POR_n), // in
+		      .RDn((~MATCH_KBDMS | ~RD) & ~sys_reset), // in
+		      .WRn((~MATCH_KBDMS | ~WR) & ~sys_reset), // in
 		      .A_Bn(P_ADR_IN[2]), // in
 		      .D_Cn(P_ADR_IN[1]), // in
 		      
@@ -564,7 +563,7 @@ module sun3_fpga(input         CLK,
 			   .din(P_DATA_IN[31:24]),
 			   .WR(WR & MATCH_MEMERR_CTRL),
 			   .dout(memerr_ctrl_out),
-			   .CLR_n(P_RESET_n)
+			   .CLR_n(~sys_reset)
 			   );
    // mem err addr reg
    // return 0 on the bus always
@@ -595,7 +594,7 @@ module sun3_fpga(input         CLK,
 		       MATCH_CTX       ? {ctx_out, 24'h000000} :
 		       MATCH_SMAP      ? {ia_smap2pmap, 24'h000000} :
 		       MATCH_PMAP      ? {ps_pmap2devices, 5'h00, ma_pmap2devices} :
-		       MATCH_SYSEN     ? {sys_out | 8'h1, 24'h000000} :
+		       MATCH_SYSEN     ? {sys_out[7:1], diag_switch, 24'h000000} :
 		       MATCH_BERR      ? {berr_out, 24'h000000} :
 		       MATCH_IDPROM    ? {idprom_out, 24'h000000} :
 		       MATCH_PROM_BOOT ? prom_out :
