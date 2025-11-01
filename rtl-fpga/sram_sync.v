@@ -5,8 +5,9 @@ module sram_sync #(parameter DATA_WIDTH=4, IDX_WIDTH=12) (input CLK,
 							  output reg [DATA_WIDTH-1:0] dout
 							  );
    
-   reg [DATA_WIDTH-1:0] sram[0:(2**IDX_WIDTH)-1];
+   (* ram_style = "block" *) reg [DATA_WIDTH-1:0] sram[0:(2**IDX_WIDTH)-1];
 
+`ifdef NOT_DEFINED
    task init;
       integer a;
       begin
@@ -19,6 +20,7 @@ module sram_sync #(parameter DATA_WIDTH=4, IDX_WIDTH=12) (input CLK,
 	dout = $random;
         init;
      end
+ `endif
    
    always @(posedge CLK)
      begin
