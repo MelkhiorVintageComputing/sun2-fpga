@@ -70,6 +70,7 @@ module tb();
 
        sys_reset = 1;
        #2000 sys_reset = 0;
+     
        
        //#100000 $finish;
        

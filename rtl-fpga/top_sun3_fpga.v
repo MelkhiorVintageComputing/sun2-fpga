@@ -6,8 +6,10 @@ module top(input CLK,
 	   /* serial */
 	   output 	 tx,
 	   input 	 rx,
-	   /* leds */
+	   /* leds, debug */
 	   output [7:0]  leds,
+	   output 	 en_boot,
+	   //output [31:0] PC,
 	   /* reset */
 	   input 	 sys_reset,
 
@@ -48,7 +50,9 @@ module top(input CLK,
    wire        BRn;
    wire        BGn;
    wire        BGACKn;
-   
+
+   wire [7:0]  leds_n;
+   assign leds = ~leds_n;
    
    sun3_fpga sun3(.clk32k768(clk32k768), // improveme
 		  .clk4m9152(clk4m9152),
@@ -100,7 +104,8 @@ module top(input CLK,
 		  .tx(tx),
 		  .rx(rx),
 
-		  .leds(leds),
+		  .leds(leds_n),
+		  .en_boot(en_boot),
 				
 		  // wishbone
 		  .wb_cyc_o(wb_cyc_o),
@@ -118,11 +123,12 @@ module top(input CLK,
    wire        HALT_INn;
    wire        RESET_OUT;
    wire        HALT_OUTn; // ignored
+   //wire [31:0] PC;
    
    assign RESET_INn = ~sys_reset; /* board reset => reset CPU */
    assign P_RESET_n = ~sys_reset & ~RESET_OUT; /* board reset or CPU reset => reset system */
    
-   assign HALT_INn = P_HALT_n;
+   assign HALT_INn = ~sys_reset; /* board reset => reset CPU (HALTn seem needed) */
 
    WF68K30L_TOP suska_68k30l (
         .CLK(CLK),
@@ -170,9 +176,11 @@ module top(input CLK,
         // Bus arbitration control:
         .BRn(BRn),
         .BGn(BGn),
-        .BGACKn(BGACKn) 
+        .BGACKn(BGACKn)
+
+	//,.PC(PC)
     );
 
-   `include "sun3-bootrom_check.v"
+  //`include "sun3-bootrom_check.v"
    
 endmodule

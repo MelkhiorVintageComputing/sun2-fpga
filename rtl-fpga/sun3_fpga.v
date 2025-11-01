@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-`define MEM_SIM_ONLY
+//`define MEM_SIM_ONLY
 
 module sun3_fpga(input         CLK,
 		 input 	       clk32k768, // improveme
@@ -35,8 +35,9 @@ module sun3_fpga(input         CLK,
 		 /* serial */
 		 output        tx,
 		 input 	       rx,
-		 /* leds */
+		 /* leds, debug */
 		 output [7:0]  leds,
+		 output en_boot,
 		 /* wishbone */
 		 output        wb_cyc_o,
 		 output        wb_stb_o,
@@ -60,11 +61,14 @@ module sun3_fpga(input         CLK,
    wire 			 EN_DEV;
    wire 			 DISACC;
    
-   assign P_HALT_n = P_RESET_n; // FIXME ?
+   assign P_HALT_n = 1'b1; // FIXME ?
 
    // layers shortcuts
    wire FC_CTRLLAYER;
    wire FC_CPUCYCLE;
+   wire FC_UDATA, FC_UPROG, FC_SDATA, FC_SPROG;
+   wire FC_GENERAL;
+
    /* 0x0: reserved, unused */
    assign FC_UDATA     = (P_FC == 3'h1);
    assign FC_UPROG     = (P_FC == 3'h2);
@@ -76,6 +80,10 @@ module sun3_fpga(input         CLK,
    assign FC_GENERAL   = ~FC_CTRLLAYER & ~FC_CPUCYCLE;
 
    wire EN_BOOT; // positive logic view of EN_BOOTn
+   assign en_boot = EN_BOOT;
+   
+   // match wire for variable-timing area
+   wire 			 MATCH_VME32_32;
 
    // P_AS_n timing
    reg C_S3, C_S5, C_S7, C_S9;
@@ -104,7 +112,7 @@ module sun3_fpga(input         CLK,
 	if (~P_AS_n & C_S12) C_S14 <= 1'b1;
 	if (~P_AS_n & C_S14) C_S16 <= 1'b1;
 	if (~P_AS_n & C_S16) C_S18 <= 1'b1;
-	if (~P_AS_n & C_S18) TIMEOUT <= 1'b1; // CHECKME: sun3, too soon?
+	if (~P_AS_n & C_S18 & !MATCH_VME32_32 & !MATCH_MEM) TIMEOUT <= 1'b1; // CHECKME: sun3, too soon?
 	if ( P_AS_n)
 	  begin
 	     C_S4 <= 1'b0;
@@ -138,9 +146,6 @@ module sun3_fpga(input         CLK,
    /* 0xC to 0xE: unused */
    assign MATCH_UARTBYP = (FC_CTRLLAYER) & (P_ADR_IN[31:28] == 4'hF);
 
-   wire [31:0] 			 pa_forshow; // more readable as a wave, no functional use
-   assign pa_forshow = {ma_pmap2devices, P_ADR_IN[12:0]};
-
    wire 			 MATCH_PROM_BOOT;
    assign MATCH_PROM_BOOT  = ((FC_SPROG) & (EN_BOOT)); // at boot (bit from SYSEN): all Supervisor Program are from the PROM
 
@@ -154,7 +159,10 @@ module sun3_fpga(input         CLK,
    wire [7:0] 			 ia_smap2pmap; // fixme: parametrizable
    wire [18:0] 			 ma_pmap2devices; // only 16-bits in e.g. 3/60 // fixme: parametrizable
    wire [7:0] 			 ps_pmap2devices; // fixme: parametrizable
-   wire [3:0] 			 mmu_stat_in; 			 
+   wire [3:0] 			 mmu_stat_in; 
+
+   wire [31:0] 			 pa_forshow; // more readable as a wave, no functional use
+   assign pa_forshow = {ma_pmap2devices, P_ADR_IN[12:0]};			 
 
    sun3_mmu mmu(.CLK(CLK),
 		/* matching */
@@ -240,7 +248,7 @@ module sun3_fpga(input         CLK,
    // Bus Error Register, read-only
    wire [7:0] 			 berr_in;
    wire [7:0] 			 berr_out;
-   wire 			 BERRCLK;
+   wire 			 BERRCLK, BERR;
    
    //assign berr_in = {1'b1, 1'b1, FPAENERR, FPABERR, VMEBERR, TIMEOUT, PROTERR, INVALID}; // this is from the architecture manual
    //assign berr_in = {WDOGn, 1'b1, 1'b1, 1'b1, 1'b1, BERR_Tn, BERR_Pn, BERR_Vn}; // this is from the 3/60 schematics
@@ -269,7 +277,7 @@ module sun3_fpga(input         CLK,
    wire 			 EN_DIAG, EN_FPA, EN_COPY, EN_VIDEO, EN_CACHE, EN_SDVMA, EN_FPP, EN_BOOTn;
    
    assign EN_DIAG  = sys_out[0];
-   assign EN_FPA   = sys_out[1];
+   assign EN_FPA   = sys_out[1]; // we repurpose as 'enable wishbone' for a one-shot trigger during early boot
    assign EN_COPY  = sys_out[2];
    assign EN_VIDEO = sys_out[3];
    assign EN_CACHE = sys_out[4];
@@ -305,6 +313,7 @@ module sun3_fpga(input         CLK,
    // that happens on entry in S2 (rising edge), so on that edge IA becomes valid
    // then on entry in S4 MA becomes valid
    wire 			 MATCH_KBDMS, MATCH_SERIAL, MATCH_EEPROM, MATCH_TIMER;
+   wire 			 MATCH_MEMERR_CTRL, MATCH_MEMERR_ADDR;
    wire 			 MATCH_IRQREG, MATCH_PROM;
    assign MATCH_KBDMS    = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h0) & C_S6;
    assign MATCH_SERIAL   = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h1) & C_S6;
@@ -325,16 +334,19 @@ module sun3_fpga(input         CLK,
    //assign MATCH_DEP      = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hE) & C_S6; // uninstalled Data Encryption Processor
    //assign MATCH_ECCREG   = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hF) & C_S6; // ECC memory only
 
-   assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:8] == 11'h000) & C_S6; // "physically" installed, here just the two megs
+   wire 			 MATCH_MEM, MATCH_MEMX;
+   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:8] == 11'h000) & C_S6; // "physically" installed, here just the two megs
+   assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:10] == 9'h000) & C_S6; // "physically" installed, here just the 8 megs
    //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:7] == 12'h000) & C_S6; // "physically" installed, here just 512k
    assign MATCH_MEMX     = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'h00) & C_S6; // addressable, 16 MiB (?) // CHECKME: sun3 behavior
    //assign MATCH_FBMEMX   = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF) & C_S6; // addressable // CHECKME: sun3 behavior
 
+   
    /* VME spaces, no default timing, FYI only */
    //assign MATCH_VME16_32 = (EN_DEV) & (TYPE == 2'h2) & !DISACC;
    //assign MATCH_VME16_16 = (EN_DEV) & (TYPE == 2'h2) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF));
    //assign MATCH_VME16_08 = (EN_DEV) & (TYPE == 2'h2) & !DISACC & (ma_pmap2devices[18:3] == 16'hFFFF));
-   assign MATCH_VME32_32 = (EN_DEV) & (TYPE == 2'h3) & !DISACC;
+   assign MATCH_VME32_32 = (EN_DEV) & (TYPE == 2'h3) & !DISACC & C_S6;
    //assign MATCH_VME32_16 = (EN_DEV) & (TYPE == 2'h3) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF));
    //assign MATCH_VME32_08 = (EN_DEV) & (TYPE == 2'h3) & !DISACC & (ma_pmap2devices[18:3] == 16'hFFFF));
    /* won't even bother with the FPA */
@@ -373,7 +385,10 @@ module sun3_fpga(input         CLK,
    wire [31:0] 			 wishbone_out;
    wire 			 w_ack;
    
-   sun3_wishbone_bridge wbridge(.P_ADR_IN(P_ADR_IN),
+   sun3_wishbone_bridge wbridge(.CLK(CLK),
+				.RESET_n(P_RESET_n),
+				.SET_ENABLE(EN_FPA),
+				.P_ADR_IN({ma_pmap2devices, P_ADR_IN[12:0]}), // full physical
 				.P_DATA_IN(P_DATA_IN),
 				.P_DATA_OUT(wishbone_out),
 				.P_RW_n(P_RW_n),
@@ -580,7 +595,7 @@ module sun3_fpga(input         CLK,
 		       MATCH_CTX       ? {ctx_out, 24'h000000} :
 		       MATCH_SMAP      ? {ia_smap2pmap, 24'h000000} :
 		       MATCH_PMAP      ? {ps_pmap2devices, 5'h00, ma_pmap2devices} :
-		       MATCH_SYSEN     ? {sys_out, 24'h000000} :
+		       MATCH_SYSEN     ? {sys_out | 8'h1, 24'h000000} :
 		       MATCH_BERR      ? {berr_out, 24'h000000} :
 		       MATCH_IDPROM    ? {idprom_out, 24'h000000} :
 		       MATCH_PROM_BOOT ? prom_out :
@@ -589,6 +604,7 @@ module sun3_fpga(input         CLK,
 		       MATCH_MEM       ? mem_out :
 `else
 		       MATCH_MEM       ? wishbone_out :
+		       MATCH_VME32_32  ? wishbone_out :
 `endif
 		       MATCH_KBDMS     ? {kbdms_out, 24'h000000} :
 		       MATCH_SERIAL    ? {serial_out, 24'h000000} :
@@ -615,7 +631,7 @@ module sun3_fpga(input         CLK,
 `ifdef MEM_SIM_ONLY
 		     ( P_RW_n & C_S8 & (MATCH_MEM)) |
 `else
-		     ( P_RW_n & w_ack & (MATCH_MEM)) | // wishbone
+		     ( P_RW_n & w_ack & (MATCH_MEM | MATCH_VME32_32)) | // wishbone
 `endif
 		     /* writes */
 		     (~P_RW_n & C_S4 & (MATCH_CTX |                MATCH_SYSEN |              MATCH_DIAG |                   MATCH_MEMERR_CTRL)) | // entering S4, quick devices (WO or WR)
@@ -627,12 +643,12 @@ module sun3_fpga(input         CLK,
 `ifdef MEM_SIM_ONLY
 		     (~P_RW_n & C_S8 & (MATCH_MEM)) |
 `else
-		     (~P_RW_n & w_ack & (MATCH_MEM)) | // wishbone
+		     (~P_RW_n & w_ack & (MATCH_MEM | MATCH_VME32_32)) | // wishbone
 `endif
 		     1'b0);
    
    assign P_DSACK_n[0] = ~(DO_ACK); // we only have 8 and 32 bits for now, so everyone assert [0] (16-bits are [1] only]
-   assign P_DSACK_n[1] = ~(DO_ACK & (MATCH_PMAP | MATCH_MEMERR_ADDR | MATCH_PROM_BOOT | MATCH_PROM | MATCH_MEMX)); // 32-bits devices
+   assign P_DSACK_n[1] = ~(DO_ACK & (MATCH_PMAP | MATCH_MEMERR_ADDR | MATCH_PROM_BOOT | MATCH_PROM | MATCH_MEMX | MATCH_VME32_32)); // 32-bits devices
    
    
    // LEDS
