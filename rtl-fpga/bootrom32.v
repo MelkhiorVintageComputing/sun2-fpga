@@ -5,7 +5,7 @@ module bootrom32(input CLK,
 		 output reg [31:0] dout
 		 );
    
-  always @(CLK)
+  always @(posedge CLK)
     begin
        case(idx)
 `include "bootrom_patched_32bits.v"
