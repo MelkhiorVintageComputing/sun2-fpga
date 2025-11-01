@@ -111,7 +111,7 @@ module sun3_fpga(input         CLK,
 	if (~P_AS_n & C_S12) C_S14 <= 1'b1;
 	if (~P_AS_n & C_S14) C_S16 <= 1'b1;
 	if (~P_AS_n & C_S16) C_S18 <= 1'b1;
-	if (~P_AS_n & C_S18 & !MATCH_VME32_32 & !MATCH_MEM) TIMEOUT <= 1'b1; // CHECKME: sun3, too soon?
+	if (~P_AS_n & C_S18 & !MATCH_VME32_32 & !MATCH_MEM & !MATCH_FB) TIMEOUT <= 1'b1; // CHECKME: sun3, too soon?
 	if ( P_AS_n)
 	  begin
 	     C_S4 <= 1'b0;
@@ -260,8 +260,8 @@ module sun3_fpga(input         CLK,
 		    .dout(berr_out),
 		    .CLR_n(~sys_reset /*1'b1 */) /* FIXME: how is supposed to be initialized ??? */
 		    );
-   assign BERRCLK	= (C_S8 & (BERR_P | BERR_T | BERR_V)); // FIXME: timing?
-   assign BERR	        = (C_S8 & (BERR_P | BERR_T | BERR_V)); // FIXME: timing?
+   assign BERRCLK	= (C_S6 & (BERR_P | BERR_T | BERR_V)); // FIXME: timing?
+   assign BERR	        = (C_S6 & (BERR_P | BERR_T | BERR_V)); // FIXME: timing?
    assign P_BERR_n = ~BERR;
 
    // System Enable register
@@ -340,7 +340,10 @@ module sun3_fpga(input         CLK,
    assign MATCH_MEMX     = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'h00) & C_S6; // addressable, 16 MiB (?) // CHECKME: sun3 behavior
    //assign MATCH_FBMEMX   = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF) & C_S6; // addressable // CHECKME: sun3 behavior
 
-   
+   wire 			 MATCH_FB, MATCH_FBX;
+   assign MATCH_FBX      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF) & (ma_pmap2devices[11:9] == 3'h0) & C_S6; // architectural: 2 MiB
+   assign MATCH_FB       = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF) & (ma_pmap2devices[11:6] == 6'h00) & C_S6; // BW: 256 KiB
+   //    
    /* VME spaces, no default timing, FYI only */
    //assign MATCH_VME16_32 = (EN_DEV) & (TYPE == 2'h2) & !DISACC;
    //assign MATCH_VME16_16 = (EN_DEV) & (TYPE == 2'h2) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF));
@@ -396,7 +399,8 @@ module sun3_fpga(input         CLK,
 				.EN_ULBYTE(EN_ULBYTE),
 				.EN_UUBYTE(EN_UUBYTE),
 				.MATCH_MEM(MATCH_MEM),
-				.MATCH_VME32_32(MATCH_VME32_32), // we're going ot put some support stuff, e.g. DDR CSRs, in VME space
+				.MATCH_FB(MATCH_FB),
+				.MATCH_VME32_32(MATCH_VME32_32), // we're going to put some support stuff, e.g. DDR CSRs, in VME space
 				.W_ACK(w_ack),
 				
 				// wishbone
@@ -604,6 +608,7 @@ module sun3_fpga(input         CLK,
 `else
 		       MATCH_MEM       ? wishbone_out :
 		       MATCH_VME32_32  ? wishbone_out :
+		       MATCH_FB        ? wishbone_out :
 `endif
 		       MATCH_KBDMS     ? {kbdms_out, 24'h000000} :
 		       MATCH_SERIAL    ? {serial_out, 24'h000000} :
@@ -623,31 +628,31 @@ module sun3_fpga(input         CLK,
 		     /* reads */
 		     ( P_RW_n & C_S4 & (MATCH_CTX | MATCH_IDPROM | MATCH_SYSEN | MATCH_BERR |              MATCH_PROM_BOOT | MATCH_MEMERR_CTRL | MATCH_MEMERR_ADDR)) | // entering S4, quick devices (RO or WR)
 		     ( P_RW_n & C_S4 & (MATCH_SMAP)) |  // entering S4, quick devices (CTX is 1 clock but went valid after being written, not affected by P_A)
-		     ( P_RW_n & C_S6 & (MATCH_PMAP)) |  // entering S6, physical map needed an extra cycle
-		     ( P_RW_n & C_S8 & (MATCH_EEPROM | MATCH_TIMER | MATCH_IRQREG | MATCH_PROM)) | // entering S8, devices going through the MMU
+		     ( P_RW_n & C_S4 & (MATCH_PMAP)) |  // entering S4, physical map needed an extra cycle
+		     ( P_RW_n & C_S6 & (MATCH_EEPROM | MATCH_TIMER | MATCH_IRQREG | MATCH_PROM)) | // entering S6, devices going through the MMU
 		     ( P_RW_n & C_S10 & (MATCH_UARTBYP)) | // entering S4, SLOW serial (1/4 clock)
-		     ( P_RW_n & C_S14 & (MATCH_KBDMS | MATCH_SERIAL)) | // entering S8, SLOW serial (1/4 clock)
+		     ( P_RW_n & C_S12 & (MATCH_KBDMS | MATCH_SERIAL)) | // entering S8, SLOW serial (1/4 clock)
 `ifdef MEM_SIM_ONLY
-		     ( P_RW_n & C_S8 & (MATCH_MEM)) |
+		     ( P_RW_n & C_S6 & (MATCH_MEM)) |
 `else
-		     ( P_RW_n & w_ack & (MATCH_MEM | MATCH_VME32_32)) | // wishbone
+		     ( P_RW_n & w_ack & (MATCH_MEM | MATCH_VME32_32 | MATCH_FB)) | // wishbone
 `endif
 		     /* writes */
 		     (~P_RW_n & C_S4 & (MATCH_CTX |                MATCH_SYSEN |              MATCH_DIAG |                   MATCH_MEMERR_CTRL)) | // entering S4, quick devices (WO or WR)
 		     (~P_RW_n & C_S4 & (MATCH_SMAP)) |  // entering S4, quick devices (CTX is 1 clock but went valid after being written, not affected by P_A)
-		     (~P_RW_n & C_S6 & (MATCH_PMAP)) |  // entering S6, physical map needed an extra cycle
-		     (~P_RW_n & C_S8 & (MATCH_EEPROM | MATCH_TIMER | MATCH_IRQREG)) | // entering S8, devices going through the MMU
+		     (~P_RW_n & C_S4 & (MATCH_PMAP)) |  // entering S4, physical map needed an extra cycle
+		     (~P_RW_n & C_S6 & (MATCH_EEPROM | MATCH_TIMER | MATCH_IRQREG)) | // entering S6, devices going through the MMU
 		     (~P_RW_n & C_S10 & (MATCH_UARTBYP)) | // entering S4, SLOW serial (1/4 clock)
-		     (~P_RW_n & C_S14 & (MATCH_KBDMS | MATCH_SERIAL)) | // entering S8, SLOW serial (1/4 clock)
+		     (~P_RW_n & C_S12 & (MATCH_KBDMS | MATCH_SERIAL)) | // entering S8, SLOW serial (1/4 clock)
 `ifdef MEM_SIM_ONLY
-		     (~P_RW_n & C_S8 & (MATCH_MEM)) |
+		     (~P_RW_n & C_S6 & (MATCH_MEM)) |
 `else
-		     (~P_RW_n & w_ack & (MATCH_MEM | MATCH_VME32_32)) | // wishbone
+		     (~P_RW_n & w_ack & (MATCH_MEM | MATCH_VME32_32 | MATCH_FB)) | // wishbone
 `endif
 		     1'b0);
    
    assign P_DSACK_n[0] = ~(DO_ACK); // we only have 8 and 32 bits for now, so everyone assert [0] (16-bits are [1] only]
-   assign P_DSACK_n[1] = ~(DO_ACK & (MATCH_PMAP | MATCH_MEMERR_ADDR | MATCH_PROM_BOOT | MATCH_PROM | MATCH_MEMX | MATCH_VME32_32)); // 32-bits devices
+   assign P_DSACK_n[1] = ~(DO_ACK & (MATCH_PMAP | MATCH_MEMERR_ADDR | MATCH_PROM_BOOT | MATCH_PROM | MATCH_MEMX | MATCH_VME32_32 | MATCH_FBX)); // 32-bits devices
    
    
    // LEDS

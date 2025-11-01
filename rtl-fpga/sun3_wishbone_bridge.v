@@ -13,6 +13,7 @@ module sun3_wishbone_bridge (input SET_ENABLE,
 			     
 			     // match : response
 			     input 	       MATCH_MEM,
+			     input 	       MATCH_FB,
 			     input 	       MATCH_VME32_32,
 			     output 	       W_ACK, 
 			     
@@ -33,11 +34,12 @@ module sun3_wishbone_bridge (input SET_ENABLE,
    reg 					   ENABLE;
    
    
-   assign wb_cyc_o = ~ENABLE ? 1'b0 : (MATCH_MEM | MATCH_VME32_32) & ~wb_ack_i_prev;
-   assign wb_stb_o = ~ENABLE ? 1'b0 : (MATCH_MEM | MATCH_VME32_32) & ~wb_ack_i_prev;
-   assign wb_adr_o = ~ENABLE ? 30'h00000000 : (MATCH_MEM ? {P_ADR_IN[31:2]} : // wishbone word-addressed
-		                               (MATCH_VME32_32 ?  {P_ADR_IN[31:2]} :
-						30'h0C0FFEEE));
+   assign wb_cyc_o = ~ENABLE ? 1'b0 : (MATCH_MEM | MATCH_VME32_32 | MATCH_FB) & ~wb_ack_i_prev;
+   assign wb_stb_o = ~ENABLE ? 1'b0 : (MATCH_MEM | MATCH_VME32_32 | MATCH_FB) & ~wb_ack_i_prev;
+   assign wb_adr_o = ~ENABLE ? 30'h00000000 : (MATCH_MEM ? {P_ADR_IN[31:2]} : // wishbone word-addressed, memory is based at 0
+		                               (MATCH_VME32_32 ?  {P_ADR_IN[31:2]} : // we've matched the VME32 space to the Wishbone space
+						(MATCH_FB ?  {11'h07F, P_ADR_IN[20:2]} : // in the last 2 MiB of DDR3
+						30'h0C0FFEEE)));
    
    assign wb_dat_o = ~ENABLE ? 32'h00000000 : {P_DATA_IN[ 7: 0], // wishbone little-endian
 					       P_DATA_IN[15: 8],

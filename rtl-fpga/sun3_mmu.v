@@ -57,8 +57,8 @@ module sun3_mmu #(parameter CTX_VALID_BITS=3,
    // Page Map (except status bit)
    pmap_sram #(.MA_DATA_WIDTH(PMAP_MA_OUTPUT_BITS), .PS_DATA_WIDTH(PMAP_PS_OUTPUT_BITS - STAT_BITS), .IDX_WIDTH(PMAP_IDX_WIDTH)) pmap(.CLK(CLK),
 		  .idx({ia_smap2pmap,P_A[PAGE_IDX_BITS+SEG_IDX_BITS-1:PAGE_IDX_BITS]}),
-		  .WR_ma(WR & MATCH_PMAP_MA & C_S6),
-		  .WR_ps(WR & MATCH_PMAP_PS & C_S6),
+		  .WR_ma(WR & MATCH_PMAP_MA & C_S4),
+		  .WR_ps(WR & MATCH_PMAP_PS & C_S4),
 		  .ma_in(P_DIN[PMAP_MA_OUTPUT_BITS-1:0]),
 		  .ps_in(P_DIN[31:32-(PMAP_PS_OUTPUT_BITS  - STAT_BITS)]),
 		  .ma_out(ma_pmap2devices), // Y-bits output #1: physical address bits
@@ -66,13 +66,13 @@ module sun3_mmu #(parameter CTX_VALID_BITS=3,
 		  );
 
    wire 						    update_stat;
-   assign update_stat = C_S6 & !C_S8 & EN_DEV & !DISACC; // so valid during the C_S7 to C_S8 CLK posedge, alongside all other output signals
+   assign update_stat = C_S4 & !C_S6 & EN_DEV & !DISACC; // so valid during the C_S5 to C_S6 CLK posedge, alongside all other output signals
       
    // Page Map (status bit)
    // Need a separate SRAM as it is written to when memory/devices are accessed...
    sram_sync  #(.DATA_WIDTH(STAT_BITS), .IDX_WIDTH(PMAP_IDX_WIDTH)) stat_pmap (.CLK(CLK),
 									       .idx({ia_smap2pmap,P_A[PAGE_IDX_BITS+SEG_IDX_BITS-1:PAGE_IDX_BITS]}),
-									       .WR((WR & MATCH_PMAP_PS & C_S6) | (update_stat)),
+									       .WR((WR & MATCH_PMAP_PS & C_S4) | (update_stat)),
 									       .din((P_DIN[31-PMAP_PS_OUTPUT_BITS+STAT_BITS:32-PMAP_PS_OUTPUT_BITS] & {STAT_BITS{~update_stat}}) | (stat_in & {STAT_BITS{update_stat}})),
 									       .dout(ps_pmap2devices[STAT_BITS-1:0]) // 4-bits output #2: status bits
 									       );  
