@@ -36,6 +36,8 @@ module sun3_fpga(input         CLK,
 		 /* serial */
 		 output        tx,
 		 input 	       rx,
+		 /* video irq */
+		 input        V_INT,
 		 /* leds, debug */
 		 output [7:0]  leds,
 		 output        en_boot,
@@ -341,10 +343,11 @@ module sun3_fpga(input         CLK,
    //assign MATCH_FBMEMX   = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF) & C_S6; // addressable // CHECKME: sun3 behavior
 
    wire 			 MATCH_FB, MATCH_FBX;
-   assign MATCH_FBX      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF) & (ma_pmap2devices[11:9] == 3'h0) & C_S6; // architectural: 2 MiB
-   assign MATCH_FB       = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF) & (ma_pmap2devices[11:6] == 6'h00) & C_S6; // BW: 256 KiB
-   //    
+   assign MATCH_FBX      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF) & (ma_pmap2devices[10:8] == 3'h0) & C_S6; // architectural: 2 MiB
+   assign MATCH_FB       = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF) & (ma_pmap2devices[10:5] == 6'h00) & C_S6; // BW: 256 KiB
+       
    /* VME spaces, no default timing, FYI only */
+   /* ... except VME32_32 we use for CSR and temporary SRAM */
    //assign MATCH_VME16_32 = (EN_DEV) & (TYPE == 2'h2) & !DISACC;
    //assign MATCH_VME16_16 = (EN_DEV) & (TYPE == 2'h2) & !DISACC & (ma_pmap2devices[18:11] == 8'hFF));
    //assign MATCH_VME16_08 = (EN_DEV) & (TYPE == 2'h2) & !DISACC & (ma_pmap2devices[18:3] == 16'hFFFF));
@@ -692,10 +695,8 @@ module sun3_fpga(input         CLK,
    end // always @ (leds)
 
    // interrupts
-   wire 	       RTC, V_INT, SCC_IRQ, E_IRQ, PAR_IRQ, S_IRQ;
+   wire 	       RTC, SCC_IRQ, E_IRQ, PAR_IRQ, S_IRQ;
    assign RTC = ~timer_int_n;
-   /* no video for now */
-   assign V_INT = 1'b0;
    /* SCC_IRQ is for both Z8530 */
    assign SCC_IRQ = ~(serial_int_n & kbdms_int_n);
    /* no Ethernet for now */

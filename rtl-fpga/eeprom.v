@@ -15,12 +15,14 @@ module eeprom(input CLK,
 	      case (a)
 		11'h014: sram[a] <= 8'h02; // memory installed
 		11'h015: sram[a] <= 8'h00; // memory tested
-		11'h016: sram[a] <= 8'h00; // 1152x900
+		//11'h016: sram[a] <= 8'h00; // 1152x900
+		11'h016: sram[a] <= 8'h20; // 1280x1024
 		// 0x17: watchdog action ?
 		11'h018: sram[a] <= 8'h12; // boot from eeprom-specified device 
 		11'h019: sram[a] <= 8'h73; // boot device (2 bytes)
 		11'h01a: sram[a] <= 8'h64;
-		11'h01f: sram[a] <= 8'h10; // primary terminal (0x10: serial A)
+		//11'h01f: sram[a] <= 8'h10; // primary terminal (0x10: serial A)
+		11'h01f: sram[a] <= 8'h00; // primary terminal (0x00: console)
 		// 0x21: jeyboard click?
 		11'h022: sram[a] <= 8'h69; // diag boot (2)
 		11'h023: sram[a] <= 8'h65;

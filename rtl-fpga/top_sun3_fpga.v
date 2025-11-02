@@ -6,6 +6,7 @@ module top(input CLK,
 	   /* serial */
 	   output 	 tx,
 	   input 	 rx,
+	   input 	 V_INT,
 	   /* leds, debug */
 	   output [7:0]  leds,
 	   output 	 en_boot,
@@ -105,6 +106,7 @@ module top(input CLK,
 
 		  .tx(tx),
 		  .rx(rx),
+		  .V_INT(V_INT),
 
 		  .leds(leds_n),
 		  .en_boot(en_boot),
