@@ -11,6 +11,7 @@ module top(input CLK,
 	   output [7:0]  leds,
 	   output 	 en_boot,
 	   input 	 diag_switch,
+	   output [2:0] berrd,
 	   //output [31:0] PC,
 	   /* reset */
 	   input 	 sys_reset,
@@ -111,6 +112,7 @@ module top(input CLK,
 		  .leds(leds_n),
 		  .en_boot(en_boot),
 		  .diag_switch(diag_switch),
+		  .berrd(berrd),
 				
 		  // wishbone
 		  .wb_cyc_o(wb_cyc_o),
