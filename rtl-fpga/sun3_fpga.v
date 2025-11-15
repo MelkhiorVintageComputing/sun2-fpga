@@ -36,10 +36,13 @@ function [7:0] EXTRACT_8BITS (input [31:0] X, input [1:0] A);
 endfunction
 `endif
 
-module sun3_fpga(input         CLK,
+module sun3_fpga(/* clock, reset */
+		 input 	       CLK,
 		 input 	       clk32k768, // improveme
 		 input 	       clk4m9152,
+		 input 	       clk50m,
 		 input 	       sys_reset, // board reset => also CPU reset
+		 /* CPU */
 		 input [31:0]  P_ADR_IN,
 		 input [31:0]  P_DATA_IN,
 		 output [31:0] P_DATA_OUT,
@@ -70,6 +73,18 @@ module sun3_fpga(input         CLK,
 		 /* serial */
 		 output        tx,
 		 input 	       rx,
+		 /* kbd, mouse */
+		 output        kbd_tx,
+		 input 	       kbd_rx,
+		 input 	       mou_rx,
+		 /* RMII eth */
+		 output [1:0]  phy_txd,
+		 output        phy_tx_en,
+		 input [1:0]   phy_rxd,
+		 input 	       phy_rx_er,
+		 input 	       phy_rx_dv,
+		 input 	       phy_int_n,
+		 output        phy_reset_n,
 		 /* video irq */
 		 input 	       V_INT,
 		 /* leds, debug */
@@ -88,8 +103,8 @@ module sun3_fpga(input         CLK,
 		 input 	       wb_ack_i
 		 );
    
-   assign P_BR_n = 1'b1; // FIXME ? we have nothing doing DMA yet
-   assign P_BGACK_n = 1'b1;
+   //assign P_BR_n = 1'b1; // FIXME ? we have nothing doing DMA yet
+   //assign P_BGACK_n = 1'b1;
 
    assign P_AVEC_n = 1'b0;
    assign P_STERM_n = 1'b1; // 68k30l has sterm, '020 doesn't
@@ -144,7 +159,7 @@ module sun3_fpga(input         CLK,
    wire 			 SUN3_RW_n;
    wire 			 SUN3_DS_n;
 
-   wire 			 ethernet_dma_active = (~ethernetdma_bg_n & ~ethernetdma_bgack_n_out);
+   wire 			 ethernet_dma_active = (~ethernetdma_br_n_out & ~ethernetdma_bgack_n_out);
    
 
    assign SUN3_ADR_IN = ethernet_dma_active ? ethernetdma_addr_out : P_ADR_IN;
@@ -424,8 +439,8 @@ module sun3_fpga(input         CLK,
 
    wire 			 MATCH_MEMX;
    //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:7] == 12'h000) & C_S6; // "physically" installed, here just 512k
-   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:8] == 11'h000) & C_S6; // "physically" installed, here just the two megs
-   assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:10] == 9'h000) & C_S6; // "physically" installed, here just the 8 megs
+   assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:8] == 11'h000) & C_S6; // "physically" installed, here just the two megs
+   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:10] == 9'h000) & C_S6; // "physically" installed, here just the 8 megs
    //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'h00) & C_S6; // "physically" installed, here just the 16 megs
    //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:12] == 7'h00) & C_S6; // "physically" installed, here just the 32 megs
    /*
@@ -896,9 +911,9 @@ module sun3_fpga(input         CLK,
    // PLOMB Read Interface Structure
    typedef struct      packed 		  {
       logic [31:0]     d;       // Read data
+      logic [1:0]      code;    // enum_plomb_code      
       logic 	       ack;     // Acknowledge
-      logic 	       err;     // Error
-      logic 	       retry;   // Retry
+      logic 	       dreq;    // 
    } type_plomb_r;
    
    // MAC EMI Write Interface Structure
@@ -947,8 +962,8 @@ module sun3_fpga(input         CLK,
    type_mac_rec_r amdle_mac_rec_r;
    
    wire 	       amdle_intr;
-   wire [7:0] 	       amdle_eth_ba;
-   wire 	       amdle_stopa;
+   //wire [7:0] 	       amdle_eth_ba;
+   //wire 	       amdle_stopa;
    
    
    ts_lance #(.ASI(8'h0B)) ethernet (
@@ -962,8 +977,8 @@ module sun3_fpga(input         CLK,
 				     .mac_rec_w(amdle_mac_rec_w),
 				     .mac_rec_r(amdle_mac_rec_r),
 				     .intr(amdle_intr),
-				     .eth_ba(amdle_eth_ba),
-				     .stopa(amdle_stopa),
+				     .eth_ba(8'hff), // CHECKME
+				     .stopa(1'b0),
 				     .clk(CLK),
 				     .reset(~P_RESET_n), // CHECKME: why 2 resets ???
 				     .reset_n(P_RESET_n)
@@ -991,15 +1006,16 @@ module sun3_fpga(input         CLK,
 					   .plomb_w(amdle_pw),
 					   .plomb_r(amdle_pr),
 					   .mc_A_OUT(ethernetdma_addr_out),
-					   .mc_D_IN(SUN3_DATA_IN),
+					   .mc_D_IN(P_DATA_OUT),
 					   .mc_D_OUT(ethernetdma_data_out),
 					   .mc_FC(ethernetdma_fc_out),
 					   .mc_SIZ(ethernetdma_siz_out),
-					   .mc_AS_N(ethernetdma_as_n_out),
+					   .mc_AS_N_OUT(ethernetdma_as_n_out),
+					   .mc_AS_N_IN(SUN3_AS_n),
 					   .mc_DS_N(ethernetdma_ds_n_out),
 					   .mc_RW_N(ethernetdma_rw_n_out),
-					   .mc_DSACK0_N(ethernetdma_dsack_n[0]),
-					   .mc_DSACK1_N(ethernetdma_dsack_n[1]), 
+					   .mc_DSACK0_N(P_DSACK_n[0]),
+					   .mc_DSACK1_N(P_DSACK_n[1]), 
 					   .mc_BERR_N(P_BERR_n),
 					   .mc_BR_N(ethernetdma_br_n_out),
 					   .mc_BG_N(ethernetdma_bg_n),
@@ -1007,6 +1023,51 @@ module sun3_fpga(input         CLK,
 					   .clk(CLK),
 					   .reset_n(P_RESET_n)
 					   );
+
+   //wire [3:0] 	       phy_txd;    // MII Data               RMII : TXD[1:0]
+     wire [1:0] phy_txd_high; 
+   //wire 	       phy_tx_en;  // MII Transmit Enable    RMII : TX_EN
+   wire 	       phy_tx_er;  // MII Transmit Error     RMII : Speed Detect
+   wire 	       phy_tx_clk; // MII Transmit Clock     RMII : CLK = RX_CLK
+   wire 	       phy_col;    // MII Collision (async.) RMII : Unused
+
+   //wire [3:0] 	       phy_rxd;    // MII Data               RMII : RXD[1:0]
+   wire [1:0] 	       phy_rxd_high;
+   //wire 	       phy_rx_dv;  // MII Receive Data Valid RMII : CRS_DV
+   //wire 	       phy_rx_er;  // MII Receive Error      RMII : Unused
+   //wire 	       phy_rx_clk; // MII Receive Clock 25MHz/2.5MHz RMII : CLK
+   wire 	       phy_crs;    // MII Carrier Sense (async.) : RMII : Unused
    
+   //wire 	       phy_int_n; // input
+   //wire 	       phy_reset_n; // output
+   //assign phy_int_n = 1'b1;
+
+   assign phy_rxd_high = 2'b0;
+       
+   ts_lance_mac eth_mac(
+			.phy_txd({phy_txd_high, phy_txd}),
+			.phy_tx_en(phy_tx_en),
+			.phy_tx_er(phy_tx_er),
+			.phy_tx_clk(phy_tx_clk), // unused (?)
+			.phy_col(phy_col), // unused
+			
+			.phy_rxd({phy_rxd_high, phy_rxd}),
+			.phy_rx_dv(phy_rx_dv),
+			.phy_rx_er(phy_rx_er), // unused
+			.phy_rx_clk(clk50m),
+			.phy_crs(phy_crs), // unused
+			
+			.phy_int_n(phy_int_n),
+			.phy_reset_n(phy_reset_n),
+			
+			// Interne
+			.mac_emi_w(amdle_mac_emi_w),
+			.mac_emi_r(amdle_mac_emi_r),
+			.mac_rec_w(amdle_mac_rec_w),
+			.mac_rec_r(amdle_mac_rec_r),
+			
+			.clk(CLK),
+			.reset_n(P_RESET_n)
+			);
    
 endmodule // sun2_fpga

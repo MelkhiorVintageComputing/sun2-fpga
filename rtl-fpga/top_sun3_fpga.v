@@ -1,20 +1,35 @@
 `timescale 1ns / 1ps
 
-module top(input CLK,
+module top(/* clock, reset */
+	   input 	 CLK,
 	   input 	 clk4m9152,
 	   input 	 clk32k768,
+	   input 	 clk50m,
+	   /* reset */
+	   input 	 sys_reset,
 	   /* serial */
 	   output 	 tx,
 	   input 	 rx,
+	   /* kbd, mouse */
+	   output 	 kbd_tx,
+	   input 	 kbd_rx,
+	   input 	 mou_rx,
+	   /* RMII eth */
+	   output [1:0]  phy_txd,
+	   output 	 phy_tx_en,
+	   input [1:0] 	 phy_rxd,
+	   input 	 phy_rx_er,
+	   input 	 phy_rx_dv,
+	   input 	 phy_int_n,
+	   output 	 phy_reset_n,
+	   /* video irq */
 	   input 	 V_INT,
 	   /* leds, debug */
 	   output [7:0]  leds,
 	   output 	 en_boot,
 	   input 	 diag_switch,
-	   output [2:0] berrd,
+	   output [2:0]  berrd,
 	   //output [31:0] PC,
-	   /* reset */
-	   input 	 sys_reset,
 
 	   /* wishbone */
 	   output 	 wb_cyc_o,
@@ -59,6 +74,7 @@ module top(input CLK,
    
    sun3_fpga sun3(.clk32k768(clk32k768), // improveme
 		  .clk4m9152(clk4m9152),
+		  .clk50m(clk50m),
 		  .CLK(CLK),
 		  .sys_reset(sys_reset),
         
@@ -107,6 +123,19 @@ module top(input CLK,
 
 		  .tx(tx),
 		  .rx(rx),
+
+		  .kbd_tx(kbd_tx),
+		  .kbd_rx(kbd_rx),
+		  .mou_rx(mou_rx),
+		  
+		  .phy_txd(phy_txd),
+		  .phy_tx_en(phy_tx_en),
+		  .phy_rxd(phy_rxd),
+		  .phy_rx_er(phy_rx_er),
+		  .phy_rx_dv(phy_rx_dv),
+		  .phy_int_n(phy_int_n),
+		  .phy_reset_n(phy_reset_n),
+		  
 		  .V_INT(V_INT),
 
 		  .leds(leds_n),
@@ -188,6 +217,6 @@ module top(input CLK,
 	//,.PC(PC)
     );
 
-  //`include "sun3-bootrom_check.v"
+//`include "sun3-bootrom_check.v"
    
 endmodule
