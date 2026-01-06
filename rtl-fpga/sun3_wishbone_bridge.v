@@ -40,29 +40,47 @@ module sun3_wishbone_bridge (input SET_ENABLE,
 		                               (MATCH_VME32_32 ?  {P_ADR_IN[31:2]} : // we've matched the VME32 space to the Wishbone space
 						(MATCH_FB ?  {11'h07F, P_ADR_IN[20:2]} : // in the last 2 MiB of DDR3, at 0x0FE00000
 						30'h0C0FFEEE)));
-   
+`ifdef WB_LITTLE_ENDIAN
    assign wb_dat_o = ~ENABLE ? 32'h00000000 : {P_DATA_IN[ 7: 0], // wishbone little-endian
 					       P_DATA_IN[15: 8],
 					       P_DATA_IN[23:16],
 					       P_DATA_IN[31:24]};
    assign wb_sel_o = ~ENABLE ? 4'h0 : (P_RW_n ? 4'hF : {EN_LLBYTE, EN_LUBYTE, EN_ULBYTE, EN_UUBYTE});
+`else
+   assign wb_dat_o = ~ENABLE ? 32'h00000000 : P_DATA_IN;
+   assign wb_sel_o = ~ENABLE ? 4'h0 : (P_RW_n ? 4'hF : {EN_UUBYTE, EN_ULBYTE, EN_LUBYTE, EN_LLBYTE});
+`endif
    assign wb_we_o  = ~ENABLE ? 1'b0 : ~P_RW_n;
    assign W_ACK = ~ENABLE ? 1'b0 : wb_ack_i;
+
 
    always @(posedge CLK)
      begin
 	wb_ack_i_prev <= ~ENABLE ? 1'b0 : wb_ack_i;
+
 	if (~RESET_n) ENABLE <= 1'b0;
 	if (SET_ENABLE) ENABLE <= 1'b1; // one-shot trigger: once seen, the wishbone stays up until next (board) reset
-	
+
 	if (~ENABLE)
 	  P_DATA_OUT <= 32'h00000000;
+
+	if (ENABLE)
+	  if(wb_ack_i & ~wb_we_o)
+	    begin
+`ifdef WB_LITTLE_ENDIAN
+	       P_DATA_OUT <= {wb_dat_i[ 7: 0],
+			      wb_dat_i[15: 8],
+			      wb_dat_i[23:16],
+			      wb_dat_i[31:24]};
+`else
+	       P_DATA_OUT <= wb_dat_i;
+`endif
+	    end // if (wb_ack_i & ~wb_we_o)
+	  else if (P_DATA_OUT[31:16] != 16'h2BAD)
+	    P_DATA_OUT <= 32'h2BAD0000;
+	  else P_DATA_OUT[15:0] <= P_DATA_OUT[15:0] + 1;
 	
-	if (ENABLE & wb_ack_i & ~wb_we_o)
-	  P_DATA_OUT <= {wb_dat_i[ 7: 0],
-			 wb_dat_i[15: 8],
-			 wb_dat_i[23:16],
-			 wb_dat_i[31:24]};
+	
      end
 
 endmodule // sun3_wishbone_bridge
