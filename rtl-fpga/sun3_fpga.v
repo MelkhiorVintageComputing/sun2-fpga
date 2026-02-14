@@ -37,74 +37,101 @@ endfunction
 `endif
 
 module sun3_fpga(/* clock, reset */
-		 input 	       CLK,
-		 input 	       clk32k768, // improveme
-		 input 	       clk4m9152,
-		 input 	       clk50m,
-		 input 	       sys_reset, // board reset => also CPU reset
+		 input 		CLK,
+		 input 		clk32k768, // improveme
+		 input 		clk4m9152,
+		 input 		clk50m,
+		 input 		sys_reset, // board reset => also CPU reset
 		 /* CPU */
-		 input [31:0]  P_ADR_IN,
-		 input [31:0]  P_DATA_IN,
-		 output [31:0] P_DATA_OUT,
-		 input 	       P_DATA_EN,
-		 output        P_BERR_n,
-		 input 	       P_RESET_n, // CPU reset, not full board
-		 output        P_HALT_n,
-		 input [2:0]   P_FC,
-		 output        P_AVEC_n,
-		 output [2:0]  P_IPL_n,
-		 input 	       P_IPEND_n,
-		 output [1:0]  P_DSACK_n,
-		 input [1:0]   P_SIZ,
-		 input 	       P_AS_n,
-		 input 	       P_RW_n,
-		 input 	       P_RMC_n,
-		 input 	       P_DS_n,
-		 input 	       P_ECS_n,
-		 input 	       P_OCS_n,
-		 input 	       P_DBEN_n,
-		 input 	       P_BUS_EN,
-		 output        P_STERM_n,
-		 input 	       P_STATUS_n,
-		 input 	       P_REFILL_n,
-		 output        P_BR_n,
-		 input 	       P_BG_n,
-		 output        P_BGACK_n,
+		 input [31:0] 	P_ADR_IN,
+		 input [31:0] 	P_DATA_IN,
+		 output [31:0] 	P_DATA_OUT,
+		 input 		P_DATA_EN,
+		 output 	P_BERR_n,
+		 input 		P_RESET_n, // CPU reset, not full board
+		 output 	P_HALT_n,
+		 input [2:0] 	P_FC,
+		 output 	P_AVEC_n,
+		 output [2:0] 	P_IPL_n,
+		 input 		P_IPEND_n,
+		 output [1:0] 	P_DSACK_n,
+		 input [1:0] 	P_SIZ,
+		 input 		P_AS_n,
+		 input 		P_RW_n,
+		 input 		P_RMC_n,
+		 input 		P_DS_n,
+		 input 		P_ECS_n,
+		 input 		P_OCS_n,
+		 input 		P_DBEN_n,
+		 input 		P_BUS_EN,
+		 output 	P_STERM_n,
+		 input 		P_STATUS_n,
+		 input 		P_REFILL_n,
+		 output 	P_BR_n,
+		 input 		P_BG_n,
+		 output 	P_BGACK_n,
 		 /* serial */
-		 output        tx,
-		 input 	       rx,
+		 output 	tx,
+		 input 		rx,
 		 /* kbd, mouse */
-		 output        kbd_tx,
-		 input 	       kbd_rx,
-		 input 	       mou_rx,
+		 output 	kbd_tx,
+		 input 		kbd_rx,
+		 input 		mou_rx,
+`ifdef LANCE_ETHERNET
+`ifdef ETH_RMII
 		 /* RMII eth */
-		 output [1:0]  phy_txd,
-		 output        phy_tx_en,
-		 input [1:0]   phy_rxd,
-		 input 	       phy_rx_er,
-		 input 	       phy_rx_dv,
-		 input 	       phy_int_n,
-		 output        phy_reset_n,
+		 output [1:0] 	phy_txd,
+		 output 	phy_tx_en,
+		 input [1:0] 	phy_rxd,
+		 input 		phy_rx_er,
+		 input 		phy_rx_dv,
+		 input 		phy_int_n,
+		 output 	phy_reset_n,
+`else
+		 /* MII eth */
+		 output [3:0] 	phy_txd,
+		 output 	phy_tx_en,
+		 output 	phy_tx_er,
+		 input 		phy_tx_clk,
+		 input 		phy_col,
+		 input [3:0] 	phy_rxd,
+		 input 		phy_rx_dv,
+		 input 		phy_rx_er,
+		 input 		phy_rx_clk,
+		 input 		phy_crs,
+		 input 		phy_int_n,
+		 output 	phy_reset_n,
+`endif // !`ifdef ETH_RMII
+		 /* debug */
+		 output [63:0] 	last_dma,
+		 output [255:0] iv,
+`endif //  `ifdef LANCE_ETHERNET
 		 /* video irq */
-		 input 	       V_INT,
+		 input 		V_INT,
 		 /* leds, debug */
-		 output [7:0]  leds,
-		 output        en_boot,
-		 input 	       diag_switch,
-		 output [2:0]  berrd,
+		 output [7:0] 	leds,
+		 output 	en_boot,
+		 input 		diag_switch,
+		 //output [2:0]  berrd,
+		 output [7:0] 	todebug,
 		 /* wishbone */
-		 output        wb_cyc_o,
-		 output        wb_stb_o,
-		 output [29:0] wb_adr_o,
-		 output [31:0] wb_dat_o,
-		 output [3:0]  wb_sel_o,
-		 output        wb_we_o,
-		 input [31:0]  wb_dat_i,
-		 input 	       wb_ack_i
+		 output 	wb_cyc_o,
+		 output 	wb_stb_o,
+		 output [29:0] 	wb_adr_o,
+		 output [31:0] 	wb_dat_o,
+		 output [3:0] 	wb_sel_o,
+		 output 	wb_we_o,
+		 input [31:0] 	wb_dat_i,
+		 input 		wb_ack_i
 		 );
    
    //assign P_BR_n = 1'b1; // FIXME ? we have nothing doing DMA yet
    //assign P_BGACK_n = 1'b1;
+
+   wire 		       eth_clk;
+   //assign eth_clk = CLK;
+   assign eth_clk = clk50m; // cannot switch to clk50m until the both bridges are updated
+   
 
    assign P_AVEC_n = 1'b0;
    assign P_STERM_n = 1'b1; // 68k30l has sterm, '020 doesn't
@@ -121,13 +148,13 @@ module sun3_fpga(/* clock, reset */
    wire FC_GENERAL;
 
    /* 0x0: reserved, unused */
-   assign FC_UDATA     = (P_FC == 3'h1);
-   assign FC_UPROG     = (P_FC == 3'h2);
-   assign FC_CTRLLAYER = (P_FC == 3'h3);
+   assign FC_UDATA     = (SUN3_FC == 3'h1);
+   assign FC_UPROG     = (SUN3_FC == 3'h2);
+   assign FC_CTRLLAYER = (SUN3_FC == 3'h3);
    /* 0x4: reserved, unused */
-   assign FC_SDATA     = (P_FC == 3'h5);
-   assign FC_SPROG     = (P_FC == 3'h6);
-   assign FC_CPUCYCLE  = (P_FC == 3'h7);
+   assign FC_SDATA     = (SUN3_FC == 3'h5);
+   assign FC_SPROG     = (SUN3_FC == 3'h6);
+   assign FC_CPUCYCLE  = (SUN3_FC == 3'h7);
    assign FC_GENERAL   = ~FC_CTRLLAYER & ~FC_CPUCYCLE;
 
    wire EN_BOOT; // positive logic view of EN_BOOTn
@@ -135,7 +162,9 @@ module sun3_fpga(/* clock, reset */
    
    // match wire for variable-timing area
    wire 			 MATCH_VME32_32;
+`ifdef LANCE_ETHERNET
    wire 			 MATCH_AMDLE;
+`endif
    wire 			 MATCH_MEM;
    wire 			 MATCH_FB;
    
@@ -158,20 +187,69 @@ module sun3_fpga(/* clock, reset */
    wire 			 SUN3_AS_n;
    wire 			 SUN3_RW_n;
    wire 			 SUN3_DS_n;
-
-   wire 			 ethernet_dma_active = (~ethernetdma_br_n_out & ~ethernetdma_bgack_n_out);
    
+`ifdef LANCE_ETHERNET
+   wire 			 ethernet_dma_active = (~ethernetdma_br_n_out & ~ethernetdma_bgack_n_out);
+`else
+   wire 			 ethernet_dma_active = 1'b0;
+   assign 			 ethernetdma_br_n_out = 1'b1;
+   assign 			 ethernetdma_bgack_n_out = 1'b1;
+`endif
 
-   assign SUN3_ADR_IN = ethernet_dma_active ? ethernetdma_addr_out : P_ADR_IN;
+   assign SUN3_ADR_IN  = ethernet_dma_active ? ethernetdma_addr_out : P_ADR_IN;
    assign SUN3_DATA_IN = ethernet_dma_active ? ethernetdma_data_out : P_DATA_IN;
-   assign SUN3_FC =  ethernet_dma_active ? ethernetdma_fc_out : P_FC;
-   assign SUN3_SIZ =  ethernet_dma_active ? ethernetdma_siz_out : P_SIZ;
-   assign SUN3_AS_n =  ethernet_dma_active ? ethernetdma_as_n_out : P_AS_n;
-   assign SUN3_RW_n =  ethernet_dma_active ? ethernetdma_rw_n_out : P_RW_n;
-   assign SUN3_DS_n =  ethernet_dma_active ? ethernetdma_ds_n_out : P_DS_n;
+   assign SUN3_FC      = ethernet_dma_active ? ethernetdma_fc_out   : P_FC;
+   assign SUN3_SIZ     = ethernet_dma_active ? ethernetdma_siz_out  : P_SIZ;
+   assign SUN3_AS_n    = ethernet_dma_active ? ethernetdma_as_n_out : P_AS_n;
+   assign SUN3_RW_n    = ethernet_dma_active ? ethernetdma_rw_n_out : P_RW_n;
+   assign SUN3_DS_n    = ethernet_dma_active ? ethernetdma_ds_n_out : P_DS_n;
    assign P_BR_n = ethernetdma_br_n_out; // FIXME: multiple DMA sources
    assign ethernetdma_bg_n = P_BG_n; // CHECKME: multiple DMA sources
    assign P_BGACK_n = ethernetdma_bgack_n_out; // FIXME: multiple DMA sources
+
+   assign todebug = {~P_RESET_n, ~P_HALT_n, ~SUN3_AS_n, P_RESET_n,
+		      P_IPL_n[0] & P_IPL_n[1] & P_IPL_n[2], EN_BOOT, MATCH_PROM_BOOT, CLK};
+   
+
+`ifdef LANCE_ETHERNET
+   reg [63:0] 			 last_dma_reg;
+   reg [255:0] 			 iv_reg;
+   //reg [63:0] 			 iv_reg;
+   
+   assign last_dma = last_dma_reg;
+   //assign last_dma = moredebug;
+   
+   //assign iv[255:192] = iv_reg;
+   assign iv = iv_reg;
+   
+   
+   always @(negedge CLK)
+     begin
+	if (ethernet_dma_active & ~P_DSACK_n[0] & ~SUN3_RW_n
+	    & ( (ethernetdma_data_out[ 7: 0] == 8'hCE) |
+		(ethernetdma_data_out[23:16] == 8'hCE) |
+		(ethernetdma_addr_out[23:0] == 24'hF00048 )))
+	  // & ~SUN3_RW_n & ~P_DSACK_n[0] /* & ~ethernetdma_rw_n_out & ~dma_rec */) // & ~P_DSACK_n[0] 
+	  begin
+	     last_dma_reg[31: 0] <= ethernetdma_addr_out;
+	     last_dma_reg[63:32] <= ethernetdma_data_out; // P_DATA_OUT;
+	     iv_reg[ 31:  0] <= last_dma_reg[31: 0];
+	     iv_reg[ 63: 32] <= last_dma_reg[63:32];
+	     iv_reg[ 95: 64] <= iv_reg[ 31:  0];
+	     iv_reg[127: 96] <= iv_reg[ 63: 32];
+	     iv_reg[159:128] <= iv_reg[ 95: 64];
+	     iv_reg[191:160] <= iv_reg[127: 96];
+	     iv_reg[223:192] <= iv_reg[159:128];
+	     iv_reg[255:224] <= iv_reg[191:160];
+	  end
+	  
+	//if (ethernet_dma_active & ~P_DSACK_n[0] & ~SUN3_RW_n & (ethernetdma_addr_out == 32'hFFF00048))// & ~SUN3_RW_n & ~P_DSACK_n[0] /* & ~ethernetdma_rw_n_out & ~dma_rec */) // & ~P_DSACK_n[0] 
+	//  begin
+	//     iv_reg[31: 0] <= ethernetdma_addr_out;
+	//     iv_reg[63:32] <= ethernetdma_data_out;
+	//  end
+     end // always @ (negedge CLK)
+`endif //  `ifdef LANCE_ETHERNET
    
    // SUN3_AS_n timing
    reg C_S3, C_S5, C_S7, C_S9;
@@ -201,7 +279,12 @@ module sun3_fpga(/* clock, reset */
 	if (~SUN3_AS_n & C_S12r) C_S14r <= 1'b1;
 	if (~SUN3_AS_n & C_S14r) C_S16r <= 1'b1;
 	if (~SUN3_AS_n & C_S16r) C_S18r <= 1'b1;
-	if (~SUN3_AS_n & C_S18r & !MATCH_VME32_32 & !MATCH_MEM & !MATCH_FB & !MATCH_AMDLE) TIMEOUT <= 1'b1; // CHECKME: sun3, too soon?
+	if (~SUN3_AS_n & C_S18r & !MATCH_VME32_32 & !MATCH_MEM & !MATCH_FB // CHECKME: sun3, too soon?
+`ifdef LANCE_ETHERNET
+	    & !MATCH_AMDLE
+`endif
+	    ) TIMEOUT <= 1'b1;
+	
 	if ( SUN3_AS_n)
 	  begin
 	     C_S4r <= 1'b0;
@@ -331,6 +414,7 @@ module sun3_fpga(/* clock, reset */
    // BERR.T: custom
    assign BERR_T = TIMEOUT;
    
+   
    // IDPROM, read-only
    wire [7:0] 			 idprom_out;
    idprom_sun3 idprom(.CLK(CLK),
@@ -365,8 +449,6 @@ module sun3_fpga(/* clock, reset */
    assign BERRCLK	= (C_S6 & (BERR_P | BERR_T | BERR_V)); // FIXME: timing?
    assign BERR	        = (C_S6 & (BERR_P | BERR_T | BERR_V)); // FIXME: timing?
    assign P_BERR_n = ~BERR;
-
-   assign berrd[2:0] = berr_out[7:5];
 
    // System Enable register
    wire [7:0] 			 sys_out;
@@ -429,7 +511,9 @@ module sun3_fpga(/* clock, reset */
    //assign MATCH_CMAP     = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h7) & C_S6; // color FB only
    
    assign MATCH_PROM     = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h8) & C_S6;
+`ifdef LANCE_ETHERNET
    assign MATCH_AMDLE    = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'h9) & C_S6;
+`endif
    //assign MATCH_SCSI     = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hA) & C_S6;
    //assign MATCH_RSVD1    = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hB) & C_S6;
    //assign MATCH_RSVD2    = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hC) & C_S6;
@@ -438,18 +522,20 @@ module sun3_fpga(/* clock, reset */
    //assign MATCH_ECCREG   = (EN_DEV) & (TYPE == 2'h1) & !DISACC & (ma_pmap2devices[7:4] == 4'hF) & C_S6; // ECC memory only
 
    wire 			 MATCH_MEMX;
-   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:7] == 12'h000) & C_S6; // "physically" installed, here just 512k
-   assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:8] == 11'h000) & C_S6; // "physically" installed, here just the two megs
-   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:10] == 9'h000) & C_S6; // "physically" installed, here just the 8 megs
-   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] == 8'h00) & C_S6; // "physically" installed, here just the 16 megs
-   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:12] == 7'h00) & C_S6; // "physically" installed, here just the 32 megs
+   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18: 7] == 12'h000) & C_S6; // "physically" installed, here just 512k
+   assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18: 8] == 11'h000) & C_S6; // "physically" installed, here just the two megs
+   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18: 9] == 10'h000) & C_S6; // "physically" installed, here just the 4 megs
+   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:10] ==  9'h000) & C_S6; // "physically" installed, here just the 8 megs
+   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:11] ==  8'h00) & C_S6; // "physically" installed, here just the 16 megs
+   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:12] ==  7'h00) & C_S6; // "physically" installed, here just the 32 megs
    /*
     assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & ((ma_pmap2devices[18:11] == 8'h00) || 
 								  (ma_pmap2devices[18:11] == 8'h01) || 
 								  (ma_pmap2devices[18:11] == 8'h02)) & C_S6; // "physically" installed, here just the 48 megs
-   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:13] == 6'h00) & C_S6; // "physically" installed, here just the 64 megs
-   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:14] == 5'h00) & C_S6; // "physically" installed, here the 128 megs
-   */
+    */
+   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:13] ==  6'h00) & C_S6; // "physically" installed, here just the 64 megs
+   //assign MATCH_MEM      = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:14] ==  5'h00) & C_S6; // "physically" installed, here the 128 megs
+   
    assign MATCH_MEMX     = (EN_DEV) & (TYPE == 2'h0) & !DISACC & (ma_pmap2devices[18:15] == 4'h0) & C_S6; // addressable, 256 MiB (?) // CHECKME: sun3 behavior
 
    wire 			 MATCH_FBX;
@@ -503,7 +589,7 @@ module sun3_fpga(/* clock, reset */
    sun3_wishbone_bridge wbridge(.CLK(CLK),
 				.RESET_n(~sys_reset), // don't reset on CPU-only reset, don't want to loose memory access then
 				.SET_ENABLE(EN_FPA),
-				.P_ADR_IN({ma_pmap2devices, SUN3_ADR_IN[12:0]}), // full physical
+				.P_ADR_IN({ma_pmap2devices[18:0], SUN3_ADR_IN[12:0]}), // full physical
 				.P_DATA_IN(SUN3_DATA_IN),
 				.P_DATA_OUT(wishbone_out),
 				.P_RW_n(SUN3_RW_n),
@@ -706,8 +792,9 @@ module sun3_fpga(/* clock, reset */
    assign EN_IRQ1 = irqreg_out[1];
    assign EN_INT  = irqreg_out[0];
 
+`ifdef LANCE_ETHERNET
    wire [31:0] 	       ethernet_out;
-   
+`endif
    
    // Answering the CPU
    // bus muxer. CPU has priority via DATA_EN, otherwise whomever is matched own the bus
@@ -736,12 +823,16 @@ module sun3_fpga(/* clock, reset */
 		       MATCH_MEMERR_ADDR ? EXPAND_8BITS(8'h00) :
 		       MATCH_TIMER     ? EXPAND_8BITS(timer_out) :
 		       MATCH_IRQREG    ? EXPAND_8BITS(irqreg_out) :
+`ifdef LANCE_ETHERNET
 		       MATCH_AMDLE     ? ethernet_out :
+`endif
 		       32'hDEADBEEF;
 
    // DSACK generator. has knowledge of timings for all devices
    wire 	       DO_ACK;
+`ifdef LANCE_ETHERNET
    wire [1:0] 	       ethernet_dsack_n_out;
+`endif
    
    // For memory this will need updating if we use "real" (variable-timing) memory
    assign DO_ACK = ( // FIXME: 32 vs 16 vs 8 bits, sun3 (or rewire for eevryone to be 32-bits-like ?)
@@ -763,7 +854,9 @@ module sun3_fpga(/* clock, reset */
 `else
 		     ( SUN3_RW_n & w_ack & (MATCH_MEM | MATCH_VME32_32 | MATCH_FB)) | // wishbone
 `endif
+`ifdef LANCE_ETHERNET
 		     ( SUN3_RW_n & ~ethernet_dsack_n_out[0] & (MATCH_AMDLE)) | // ethernet (PVC bridge)
+`endif
 		     /* writes */
 		     (~SUN3_RW_n & C_S4 & (MATCH_CTX |                MATCH_SYSEN |              MATCH_DIAG |                   MATCH_MEMERR_CTRL)) | // entering S4, quick devices (WO or WR)
 		     (~SUN3_RW_n & C_S4 & (MATCH_SMAP)) |  // entering S4, quick devices (CTX is 1 clock but went valid after being written, not affected by SUN3_A)
@@ -782,7 +875,9 @@ module sun3_fpga(/* clock, reset */
 `else
 		     (~SUN3_RW_n & w_ack & (MATCH_MEM | MATCH_VME32_32 | MATCH_FB)) | // wishbone
 `endif
+`ifdef LANCE_ETHERNET
 		     (~SUN3_RW_n & ~ethernet_dsack_n_out[0] & (MATCH_AMDLE)) | // ethernet (PVC bridge)
+`endif
 		     1'b0);
    
    assign P_DSACK_n[0] = ~(DO_ACK); // we only have 8 and 32 bits for now, so everyone assert [0] (16-bits are [1] only]
@@ -834,8 +929,13 @@ module sun3_fpga(/* clock, reset */
    assign RTC = ~timer_int_n;
    /* SCC_IRQ is for both Z8530 */
    assign SCC_IRQ = ~(serial_int_n & kbdms_int_n);
-   /* no Ethernet for now */
+   /* Ethernet */
+`ifdef LANCE_ETHERNET
+   wire 	       amdle_intr;
+   assign E_IRQ = amdle_intr;
+`else
    assign E_IRQ = 1'b0;
+`endif
    /* no Parity support */
    assign PAR_IRQ = 1'b0;
    /* no Parity support */
@@ -857,7 +957,9 @@ module sun3_fpga(/* clock, reset */
 			     .PAR_IRQ(PAR_IRQ),
 			     .S_IRQ(S_IRQ),
 			     .IPL_n(P_IPL_n));
+
    
+`ifdef LANCE_ETHERNET
    // ETHERNET
    // first we need to be compatible to the VHDL code
 
@@ -875,7 +977,6 @@ module sun3_fpga(/* clock, reset */
    typedef struct      packed      {
       logic 	       ack;     // Acknowledge
       logic [31:0]     dr;      // Read data
-      // logic        fault;   // Bus fault // doesn't exsit
    } type_pvc_r;
    
    // PLOMB Burst Type Enumeration
@@ -895,15 +996,15 @@ module sun3_fpga(/* clock, reset */
    // PLOMB Write Interface Structure
    typedef struct      packed 		  {
       logic [31:0]     a;       // Address
-      logic [3:0]      ah;      // High address bits (35:32)
-      logic [7:0]      asi;     // Address Space Identifier
+      logic [3:0]      ah;      // High address bits (35:32) // SPARC, unused
+      logic [7:0]      asi;     // Address Space Identifier // SPARC, hardwired to match FC == Supervisor/Data
       logic [31:0]     d;       // Data
       logic [3:0]      be;      // Byte enables
       logic [1:0]      mode;    // Access mode
       type_plomb_burst     burst;   // Burst type
-      logic 	       cont;    // Contiguous access
-      logic 	       cache;   // Cacheable
-      logic 	       lock;    // Lock signal
+      logic 	       cont;    // Contiguous access // unused?
+      logic 	       cache;   // Cacheable // unused ?
+      logic 	       lock;    // Lock signal // unused ?
       logic 	       req;     // Request
       logic 	       dack;    // Data acknowledge
    } type_plomb_w;
@@ -961,10 +1062,8 @@ module sun3_fpga(/* clock, reset */
    type_mac_rec_w amdle_mac_rec_w;
    type_mac_rec_r amdle_mac_rec_r;
    
-   wire 	       amdle_intr;
    //wire [7:0] 	       amdle_eth_ba;
    //wire 	       amdle_stopa;
-   
    
    ts_lance #(.ASI(8'h0B)) ethernet (
 				     .sel(amdle_w.req /*MATCH_AMDLE*/), // Checlme: amdle.w.req ?
@@ -977,15 +1076,17 @@ module sun3_fpga(/* clock, reset */
 				     .mac_rec_w(amdle_mac_rec_w),
 				     .mac_rec_r(amdle_mac_rec_r),
 				     .intr(amdle_intr),
-				     .eth_ba(8'hff), // CHECKME
+				     .eth_ba(8'hff),
 				     .stopa(1'b0),
-				     .clk(CLK),
+				     .clk(eth_clk),
 				     .reset(~P_RESET_n), // CHECKME: why 2 resets ???
-				     .reset_n(P_RESET_n)
+				     .reset_n(P_RESET_n),
+				     .iv() // (iv[191:0])
 				     );
 
-   
-   mc68020_to_pvc_bridge bridge_to_eth(.mc_A({ma_pmap2devices[18:0],SUN3_ADR_IN[12:0]}),
+
+`ifdef BRIDGE_TO_ETH_VHDL
+   mc68020_to_pvc_bridge bridge_to_eth(.mc_A({ma_pmap2devices[18:0],SUN3_ADR_IN[12:0]}), // full physical
 				       .mc_D_IN(SUN3_DATA_IN),
 				       .mc_D_OUT(ethernet_out), // out
 				       .mc_FC(SUN3_FC), // unused
@@ -993,15 +1094,36 @@ module sun3_fpga(/* clock, reset */
 				       .mc_AS_N(SUN3_AS_n),
 				       .mc_DS_N(SUN3_DS_n),
 				       .mc_RW_N(SUN3_RW_n),
-				       .mc_DSACK0_n(ethernet_dsack_n_out[0]), // out
-				       .mc_DSACK1_n(ethernet_dsack_n_out[1]), // out, not actually used, redundant
+				       .mc_DSACK0_N(ethernet_dsack_n_out[0]), // out
+				       .mc_DSACK1_N(ethernet_dsack_n_out[1]), // out, not actually used, redundant
 				       .mc_CS_N(~MATCH_AMDLE),
 				       .pvc_w(amdle_w),
 				       .pvc_r(amdle_r),
 				       .clk(CLK),
 				       .reset_n(P_RESET_n)
 				       );
-   
+`else // !`ifdef BRIDGE_TO_ETH_VHDL
+   bridge_020_to_pvc bridge_to_eth(
+				       .clk(eth_clk),
+				       .reset_n(P_RESET_n),
+				       .mc_CLK(CLK),
+				       .mc_A({ma_pmap2devices[18:0],SUN3_ADR_IN[12:0]}), // full physical
+				       .mc_D_IN(SUN3_DATA_IN),
+				       .mc_D_OUT(ethernet_out), // out
+				       .mc_FC(SUN3_FC), // unused
+				       .mc_SIZ(SUN3_SIZ),
+				       .mc_AS_N(SUN3_AS_n),
+				       .mc_DS_N(SUN3_DS_n),
+				       .mc_RW_N(SUN3_RW_n),
+				       .mc_DSACK0_N(ethernet_dsack_n_out[0]), // out
+				       .mc_DSACK1_N(ethernet_dsack_n_out[1]), // out, not actually used, redundant
+				       .mc_CS_N(~MATCH_AMDLE),
+				       .pvc_w(amdle_w),
+				       .pvc_r(amdle_r)
+				       );
+`endif // !`ifdef BRIDGE_TO_ETH_VHDL
+
+`ifdef BRIDGE_FROM_ETH_VHDL
    plomb_to_mc68020_bridge bridge_from_eth(
 					   .plomb_w(amdle_pw),
 					   .plomb_r(amdle_pr),
@@ -1023,7 +1145,36 @@ module sun3_fpga(/* clock, reset */
 					   .clk(CLK),
 					   .reset_n(P_RESET_n)
 					   );
+`else // !`ifdef BRIDGE_FROM_ETH_VHDL
+   bridge_plomb_to_020 bridge_from_eth(
+					   .clk(eth_clk),
+					   .reset_n(P_RESET_n),
+					   .plomb_w(amdle_pw),
+					   .plomb_r(amdle_pr),
+					   .mc_CLK(CLK),
+					   .mc_A_OUT(ethernetdma_addr_out),
+					   .mc_D_IN(P_DATA_OUT),
+					   .mc_D_OUT(ethernetdma_data_out),
+					   .mc_FC(ethernetdma_fc_out),
+					   .mc_SIZ(ethernetdma_siz_out),
+					   .mc_AS_N_OUT(ethernetdma_as_n_out),
+					   .mc_AS_N_IN(SUN3_AS_n),
+					   .mc_DS_N(ethernetdma_ds_n_out),
+					   .mc_RW_N(ethernetdma_rw_n_out),
+					   .mc_DSACK0_N(P_DSACK_n[0]),
+					   .mc_DSACK1_N(P_DSACK_n[1]), 
+					   .mc_BERR_N(P_BERR_n),
+					   .mc_BR_N(ethernetdma_br_n_out),
+					   .mc_BG_N(ethernetdma_bg_n),
+					   .mc_BGACK_N(ethernetdma_bgack_n_out),
 
+				           .todebug(todebug)
+					   );
+`endif // !`ifdef BRIDGE_FROM_ETH_VHDL
+`endif //  `ifdef LANCE_ETHERNET
+
+`ifdef LANCE_ETHERNET
+`ifdef ETH_RMII
    //wire [3:0] 	       phy_txd;    // MII Data               RMII : TXD[1:0]
      wire [1:0] phy_txd_high; 
    //wire 	       phy_tx_en;  // MII Transmit Enable    RMII : TX_EN
@@ -1060,14 +1211,43 @@ module sun3_fpga(/* clock, reset */
 			.phy_int_n(phy_int_n),
 			.phy_reset_n(phy_reset_n),
 			
-			// Interne
+			// to MAC
 			.mac_emi_w(amdle_mac_emi_w),
 			.mac_emi_r(amdle_mac_emi_r),
 			.mac_rec_w(amdle_mac_rec_w),
 			.mac_rec_r(amdle_mac_rec_r),
 			
-			.clk(CLK),
+			.clk(eth_clk),
 			.reset_n(P_RESET_n)
 			);
+`else // !`ifdef ETH_RMII
+   ts_lance_mac_mii ethmac(
+			.phy_txd(phy_txd),
+			.phy_tx_en(phy_tx_en),
+			.phy_tx_er(phy_tx_er),
+			.phy_tx_clk(phy_tx_clk),
+			.phy_col(phy_col),
+			
+			.phy_rxd(phy_rxd),
+			.phy_rx_dv(phy_rx_dv),
+			.phy_rx_er(phy_rx_er),
+			.phy_rx_clk(phy_rx_clk),
+			.phy_crs(phy_crs),
+			
+			.phy_int_n(phy_int_n),
+			.phy_reset_n(phy_reset_n),
+			
+			// to MAC
+			.mac_emi_w(amdle_mac_emi_w),
+			.mac_emi_r(amdle_mac_emi_r),
+			.mac_rec_w(amdle_mac_rec_w),
+			.mac_rec_r(amdle_mac_rec_r),
+			
+			.clk(eth_clk),
+			.reset_na(P_RESET_n)
+			   );
+   
+`endif // !`ifdef ETH_RMII
+`endif //  `ifdef LANCE_ETHERNET
    
 endmodule // sun2_fpga

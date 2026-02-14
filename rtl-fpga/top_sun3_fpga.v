@@ -1,45 +1,67 @@
 `timescale 1ns / 1ps
 
 module top(/* clock, reset */
-	   input 	 CLK,
-	   input 	 clk4m9152,
-	   input 	 clk32k768,
-	   input 	 clk50m,
+	   input 	  CLK,
+	   input 	  clk4m9152,
+	   input 	  clk32k768,
+	   input 	  clk50m,
 	   /* reset */
-	   input 	 sys_reset,
+	   input 	  sys_reset,
 	   /* serial */
-	   output 	 tx,
-	   input 	 rx,
+	   output 	  tx,
+	   input 	  rx,
 	   /* kbd, mouse */
-	   output 	 kbd_tx,
-	   input 	 kbd_rx,
-	   input 	 mou_rx,
+	   output 	  kbd_tx,
+	   input 	  kbd_rx,
+	   input 	  mou_rx,
+`ifdef LANCE_ETHERNET
+`ifdef ETH_RMII
 	   /* RMII eth */
-	   output [1:0]  phy_txd,
-	   output 	 phy_tx_en,
-	   input [1:0] 	 phy_rxd,
-	   input 	 phy_rx_er,
-	   input 	 phy_rx_dv,
-	   input 	 phy_int_n,
-	   output 	 phy_reset_n,
+	   output [1:0]   phy_txd,
+	   output 	  phy_tx_en,
+	   input [1:0] 	  phy_rxd,
+	   input 	  phy_rx_er,
+	   input 	  phy_rx_dv,
+	   input 	  phy_int_n,
+	   output 	  phy_reset_n,
+`else
+		 /* MII eth */
+	   output [3:0]   phy_txd,
+	   output 	  phy_tx_en,
+	   output 	  phy_tx_er,
+	   input 	  phy_tx_clk,
+	   input 	  phy_col,
+	   input [3:0] 	  phy_rxd,
+	   input 	  phy_rx_dv,
+	   input 	  phy_rx_er,
+	   input 	  phy_rx_clk,
+	   input 	  phy_crs,
+	   input 	  phy_int_n,
+	   output 	  phy_reset_n,
+`endif // !`ifdef ETH_RMII
+	   /* debug */
+	   output [63:0]  last_dma,
+	   output [255:0] iv,
+`endif
 	   /* video irq */
-	   input 	 V_INT,
+	   input 	  V_INT,
 	   /* leds, debug */
-	   output [7:0]  leds,
-	   output 	 en_boot,
-	   input 	 diag_switch,
-	   output [2:0]  berrd,
-	   //output [31:0] PC,
+	   output [7:0]   leds,
+	   output 	  en_boot,
+	   input 	  diag_switch,
+	   //output [2:0]   berrd,
+	   output [7:0]   todebug,
+	   // output [31:0] PC,
 
 	   /* wishbone */
-	   output 	 wb_cyc_o,
-	   output 	 wb_stb_o,
-	   output [29:0] wb_adr_o,
-	   output [31:0] wb_dat_o,
-	   output [3:0]  wb_sel_o,
-	   output 	 wb_we_o,
-	   input [31:0]  wb_dat_i,
-	   input 	 wb_ack_i
+	   output 	  wb_cyc_o,
+	   output 	  wb_stb_o,
+	   output [29:0]  wb_adr_o,
+	   output [31:0]  wb_dat_o,
+	   output [3:0]   wb_sel_o,
+	   output 	  wb_we_o,
+	   input [31:0]   wb_dat_i,
+	   input 	  wb_ack_i
 	   );
    wire [31:0] ADR_OUT;
    wire [31:0] DATA_IN;
@@ -127,7 +149,9 @@ module top(/* clock, reset */
 		  .kbd_tx(kbd_tx),
 		  .kbd_rx(kbd_rx),
 		  .mou_rx(mou_rx),
-		  
+
+`ifdef LANCE_ETHERNET
+`ifdef ETH_RMII
 		  .phy_txd(phy_txd),
 		  .phy_tx_en(phy_tx_en),
 		  .phy_rxd(phy_rxd),
@@ -135,13 +159,31 @@ module top(/* clock, reset */
 		  .phy_rx_dv(phy_rx_dv),
 		  .phy_int_n(phy_int_n),
 		  .phy_reset_n(phy_reset_n),
+`else
+		  .phy_txd(phy_txd),
+		  .phy_tx_en(phy_tx_en),
+	    	  .phy_tx_er(phy_tx_er),
+	    	  .phy_tx_clk(phy_tx_clk),
+	    	  .phy_col(phy_col),
+	    	  .phy_rxd(phy_rxd),
+	    	  .phy_rx_dv(phy_rx_dv),
+	    	  .phy_rx_er(phy_rx_er),
+	    	  .phy_rx_clk(phy_rx_clk),
+	    	  .phy_crs(phy_crs),
+	    	  .phy_int_n(phy_int_n),
+	    	  .phy_reset_n(phy_reset_n),
+`endif // !`ifdef ETH_RMII
+		  .last_dma(last_dma),
+		  .iv(iv),
+`endif
 		  
 		  .V_INT(V_INT),
 
 		  .leds(leds_n),
 		  .en_boot(en_boot),
 		  .diag_switch(diag_switch),
-		  .berrd(berrd),
+		  //.berrd(berrd),
+		  .todebug(todebug),
 				
 		  // wishbone
 		  .wb_cyc_o(wb_cyc_o),
@@ -153,13 +195,11 @@ module top(/* clock, reset */
 		  .wb_dat_i(wb_dat_i),
 		  .wb_ack_i(wb_ack_i)
 		  );
-   
 		  
    wire        RESET_INn;
    wire        HALT_INn;
    wire        RESET_OUT;
    wire        HALT_OUTn; // ignored
-   //wire [31:0] PC;
    
    assign RESET_INn = ~sys_reset; /* board reset => reset CPU */
    assign P_RESET_n = ~sys_reset & ~RESET_OUT; /* board reset or CPU reset => reset system */
@@ -214,7 +254,7 @@ module top(/* clock, reset */
         .BGn(BGn),
         .BGACKn(BGACKn)
 
-	//,.PC(PC)
+	// ,.PC(PC)
     );
 
 //`include "sun3-bootrom_check.v"
