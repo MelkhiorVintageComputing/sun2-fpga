@@ -1,9 +1,22 @@
 `timescale 1ns / 1ps
 
-`define FAST_SERIAL
-//`define MEM_SIM_ONLY
+`define SERIAL_VZ50938
+
+`ifdef SERIAL_VZ50938
+ `define FAST_SERIAL
+`else
+ `define SERIAL_SUSKA
+`endif
+
+`ifdef SERIAL_SUSKA
+ `define FAST_SERIAL
+`endif
+
+// `define MEM_SIM_ONLY
 
 `define DEVICE_8BITS_ON_32BITS_BUS
+
+`define LANCE_ETHERNET
 
 `ifdef DEVICE_8BITS_ON_32BITS_BUS
 // extract/expand low-order 8-bits
@@ -207,9 +220,10 @@ module sun3_fpga(/* clock, reset */
    assign ethernetdma_bg_n = P_BG_n; // CHECKME: multiple DMA sources
    assign P_BGACK_n = ethernetdma_bgack_n_out; // FIXME: multiple DMA sources
 
+`ifndef LANCE_ETHERNET
    assign todebug = {~P_RESET_n, ~P_HALT_n, ~SUN3_AS_n, P_RESET_n,
 		      P_IPL_n[0] & P_IPL_n[1] & P_IPL_n[2], EN_BOOT, MATCH_PROM_BOOT, CLK};
-   
+`endif  
 
 `ifdef LANCE_ETHERNET
    reg [63:0] 			 last_dma_reg;
@@ -628,7 +642,8 @@ module sun3_fpga(/* clock, reset */
 
    assign tx = TxDA;
    assign RxDA = rx;
-   
+
+`ifdef SERIAL_SUSKA
    SCC8530_TOP serial(
 		      // System controls:
 `ifndef FAST_SERIAL
@@ -689,6 +704,61 @@ module sun3_fpga(/* clock, reset */
 		      .CTSBn(), // in
 		      .DCDBn() // in
 		      );
+`endif //  `ifdef SERIAL_SUSKA
+   
+`ifdef SERIAL_VZ50938
+   z8530_scc  #(.SOFT_RESET_EN(1),
+		.RR8_CTRL_POP(1),
+		.BRG_SRC_A(1),
+		.BRG_SRC_B(1),
+		.UNIPLUS_BAUD_PATCH_B(0),
+		.AUTO_ENABLES_EN(0),
+		.RTXC_XTAL_FULLRATE_A(0),
+		.RTXC_XTAL_FULLRATE_B(0),
+		.RDWR_RESET_EN(1)
+		) serial (// System Interface
+			  .clk(CLK),           // CPU/bus clock (register file, interrupts, RR mux)
+			  .pclk(clk4m9152),       // Alternative BRG/serializer clock (Zilog "PCLK")
+			  .sclk(clk4m9152),          // Primary BRG/serializer clock (e.g. 3.6864 MHz)
+			  .reset_n(1'b1),       // Active low reset (async assert)
+			  
+			  // CPU Interface
+			  .cs_n(1'b0),          // Chip select (active low)
+			  .rd_n(((~MATCH_SERIAL & ~MATCH_UARTBYP) | ~RD) & ~sys_reset),          // Read strobe (active low)
+			  .wr_n(((~MATCH_SERIAL & ~MATCH_UARTBYP) | ~WR) & ~sys_reset),          // Write strobe (active low)
+			  .a_b(SUN3_ADR_IN[2]),           // Channel select: 1=A, 0=B
+			  .d_c(SUN3_ADR_IN[1]),           // Data/Control: 1=Data, 0=Control
+			  .data_in(EXTRACT_8BITS(SUN3_DATA_IN, SUN3_ADR_IN[1:0])),       // Data input
+			  .data_out(serial_out),      // Data output
+			  .data_oe(serial_en),       // Data output enable
+			  
+			  // Interrupt
+			  .int_n(serial_int_n),         // Interrupt output (active low)
+			  .intack_n(1'b1),      // Interrupt acknowledge
+			  
+			  // Channel A Serial Interface
+			  .rxca(),          // Receive clock A
+			  .txca(),          // Transmit clock A
+			  .rxda(RxDA),          // Receive data A
+			  .txda(TxDA),          // Transmit data A
+			  .ctsa_n(),        // Clear to send A (active low)
+			  .dcda_n(),        // Data carrier detect A (active low)
+			  .synca_n(),       // Sync A (async-mode input -> RR0[4], active low)
+			  .rtsa_n(),        // Request to send A (active low)
+			  .dtra_n(),        // Data terminal ready A (active low)
+			  
+			  // Channel B Serial Interface
+			  .rxcb(),          // Receive clock B
+			  .txcb(),          // Transmit clock B
+			  .rxdb(),          // Receive data B
+			  .txdb(),          // Transmit data B
+			  .ctsb_n(),        // Clear to send B (active low)
+			  .dcdb_n(),        // Data carrier detect B (active low)
+			  .syncb_n(),       // Sync B (async-mode input -> RR0[4], active low)
+			  .rtsb_n(),        // Request to send B (active low)
+			  .dtrb_n()         // Data terminal ready B (active low)
+			  );
+`endif //  `ifdef SERIAL_VZ50938
    
    wire [7:0] 			 kbdms_out;
    wire 			 kbdms_en;

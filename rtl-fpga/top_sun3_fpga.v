@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`define LANCE_ETHERNET
+
 module top(/* clock, reset */
 	   input 	  CLK,
 	   input 	  clk4m9152,
@@ -257,6 +259,6 @@ module top(/* clock, reset */
 	// ,.PC(PC)
     );
 
-//`include "sun3-bootrom_check.v"
+// `include "sun3-bootrom_check.v"
    
 endmodule
