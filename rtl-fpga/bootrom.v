@@ -5,7 +5,7 @@ module bootrom(input CLK,
 	       output reg [15:0] dout
 	       );
    
-  always @(CLK)
+  always @(posedge CLK)
     begin
        case(idx)
 `include "bootrom_patched_16bits.v"
