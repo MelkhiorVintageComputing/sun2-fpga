@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 
 module top(input clk40,
+	   input  clk4m9152,
 	   input  sys_reset,
 	   /* serial */
 	   output tx,
@@ -38,6 +39,7 @@ module top(input clk40,
    
    sun2_fpga sun2(.clk40(clk40),
 		  .C100(C100),
+		  .clk4m9152(clk4m9152),
 		  .sys_reset(sys_reset),
 		  .P_VPA_n(P_VPA_n),
 		  .P_BERR_n(P_BERR_n),

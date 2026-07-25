@@ -1,6 +1,17 @@
 `timescale 1ns / 1ps
 
-`define SPLIT_DATA_BUS 1
+`define SERIAL_VZ50938
+
+`ifdef SERIAL_VZ50938
+ `define FAST_SERIAL
+`else
+ `define SERIAL_SUSKA
+`endif
+
+`ifdef SERIAL_SUSKA
+ `define FAST_SERIAL
+`endif
+
 
 `include "ttl_74F151.v"
 `include "ttl_74LS148.v"
@@ -8,6 +19,7 @@
 `include "tolog.v"
 
 module sun2_fpga(input 	       clk40,
+		 input 	       clk4m9152,
 		 output        C100,
 		 input 	       sys_reset, // board reset => also CPU reset
 		 output        P_VPA_n,
@@ -38,8 +50,8 @@ module sun2_fpga(input 	       clk40,
 		 output [15:0] P_DOUT,
 		 input 	       DATA_EN,
 		 /* serial */
-		 output 	tx,
-		 input 		rx
+		 output        tx,
+		 input 	       rx
 		   );
    // 180° clock
    wire 	       C100_n;
@@ -337,6 +349,8 @@ module sun2_fpga(input 	       clk40,
   
    tolog tolog(.TxDA(TxDA)); // so we can trace only TxDA in the VCD, pulseview doesn't like too many signals
    
+`ifdef SERIAL_SUSKA
+
    SCC8530_TOP serial(
 		      // System controls:
 		      .PCLK(C100), // in // CHECKME
@@ -394,6 +408,63 @@ module sun2_fpga(input 	       clk40,
 		      .CTSBn(), // in
 		      .DCDBn() // in
 		      );
+		      
+`endif // SERIAL_SUSKA
+   
+`ifdef SERIAL_VZ50938
+   z8530_scc  #(.SOFT_RESET_EN(1),
+		.RR8_CTRL_POP(1),
+		.BRG_SRC_A(1),
+		.BRG_SRC_B(1),
+		.UNIPLUS_BAUD_PATCH_B(0),
+		.AUTO_ENABLES_EN(0),
+		.RTXC_XTAL_FULLRATE_A(0),
+		.RTXC_XTAL_FULLRATE_B(0),
+		.RDWR_RESET_EN(1)
+		) serial (
+		// System Interface
+			  .clk(C100),           // CPU/bus clock (register file, interrupts, RR mux)
+			  .pclk(clk4m9152),       // Alternative BRG/serializer clock (Zilog "PCLK")
+			  .sclk(clk4m9152),          // Primary BRG/serializer clock (e.g. 3.6864 MHz)
+			  .reset_n(~sys_reset),       // Active low reset (async assert)
+			  
+			  // CPU Interface
+			  .cs_n(1'b0),          // Chip select (active low)
+			  .rd_n(~MATCH_SERIAL | ~RD & ~sys_reset),          // Read strobe (active low)
+			  .wr_n(~MATCH_SERIAL | ~WR & ~sys_reset),          // Write strobe (active low)
+			  .a_b(P_A[2]),           // Channel select: 1=A, 0=B
+			  .d_c(P_A[1]),           // Data/Control: 1=Data, 0=Control
+			  .data_in(P_DIN[15:8]),       // Data input
+			  .data_out(serial_out),      // Data output
+			  .data_oe(serial_en),       // Data output enable
+			  
+			  // Interrupt
+			  .int_n(serial_int_n),         // Interrupt output (active low)
+			  .intack_n(1'b1),      // Interrupt acknowledge
+			  
+			  // Channel A Serial Interface
+			  .rxca(),          // Receive clock A
+			  .txca(),          // Transmit clock A
+			  .rxda(RxDA),          // Receive data A
+			  .txda(TxDA),          // Transmit data A
+			  .ctsa_n(),        // Clear to send A (active low)
+			  .dcda_n(),        // Data carrier detect A (active low)
+			  .synca_n(),       // Sync A (async-mode input -> RR0[4], active low)
+			  .rtsa_n(),        // Request to send A (active low)
+			  .dtra_n(),        // Data terminal ready A (active low)
+			  
+			  // Channel B Serial Interface
+			  .rxcb(),          // Receive clock B
+			  .txcb(),          // Transmit clock B
+			  .rxdb(),          // Receive data B
+			  .txdb(),          // Transmit data B
+			  .ctsb_n(),        // Clear to send B (active low)
+			  .dcdb_n(),        // Data carrier detect B (active low)
+			  .syncb_n(),       // Sync B (async-mode input -> RR0[4], active low)
+			  .rtsb_n(),        // Request to send B (active low)
+			  .dtrb_n()         // Data terminal ready B (active low)
+			  );
+`endif // SERIAL_VZ50938
    
    
    
