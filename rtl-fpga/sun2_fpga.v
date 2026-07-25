@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`define MEM_SIM_ONLY
+
 `define SERIAL_VZ50938
 
 `ifdef SERIAL_VZ50938
@@ -328,6 +330,7 @@ module sun2_fpga(input 	       clk40,
 		   .OUT5(timer_int[5])
 		   );
 
+`ifdef MEM_SIM_ONLY
    /* the actual memory. For now it's just synchronous RAM */
    /* should probably be moved to some "real" RAM with variable timings, which will require changing the bus mux below */
    wire [15:0] 			 mem_out;
@@ -337,7 +340,37 @@ module sun2_fpga(input 	       clk40,
 							  .WRu(WR & MATCH_MEM & ~P_UDS_n),
 							  .din(P_DIN),
 							  .dout(mem_out)
-							  );
+							  );					  );
+`else // !`ifdef SIM_ONLY
+   wire [15:0] 			 wishbone_out;
+   wire 			 w_ack;
+   
+   sun2_wishbone_bridge wbridge(.CLK(C100),
+				.RESET_n(~sys_reset), // don't reset on CPU-only reset, don't want to loose memory access then
+				.SET_ENABLE(1'b1),
+				.P_ADR_IN({5'h0, ma_pmap2devices[7:0], P_A[10:1]}), // full physical
+				.P_DATA_IN(P_DIN),
+				.P_DATA_OUT(wishbone_out),
+				.P_RW_n(WR),
+				.EN_LBYTE(~P_LDS_n),
+				.EN_UBYTE(~P_UDS_n),
+				.MATCH_MEM(MATCH_MEM),
+				.W_ACK(w_ack),
+     
+				// wishbone
+				.wb_cyc_o(wb_cyc_o),
+				.wb_stb_o(wb_stb_o),
+				.wb_adr_o(wb_adr_o),
+				.wb_dat_o(wb_dat_o),
+				.wb_sel_o(wb_sel_o),
+				.wb_we_o(wb_we_o),
+				.wb_dat_i(wb_dat_i),
+				.wb_ack_i(wb_ack_i)
+				);
+   
+`endif
+
+   
    /* serial port */
    wire [7:0] 			 serial_out;
    wire 			 serial_en;
@@ -481,7 +514,11 @@ module sun2_fpga(input 	       clk40,
 		   MATCH_PROM_BOOT ? prom_out :
 		   MATCH_PROM      ? prom_out :
 		   MATCH_TIMER     ? timer_out :
+`ifdef MEM_SIM_ONLY
 		   MATCH_MEM       ? mem_out :
+`else
+		   MATCH_MEM       ? wishbone_out :
+`endif
 		   MATCH_SERIAL    ? {serial_out, 8'h0} :
 		   16'hDEAD;
 
@@ -492,12 +529,22 @@ module sun2_fpga(input 	       clk40,
 			( P_RW_n & C_S4 & (MATCH_CTX | MATCH_IDPROM | MATCH_SYSEN | MATCH_BERR | MATCH_PROM_BOOT)) | // entering S4, quick devices
 			( P_RW_n & C_S4 & (MATCH_SMAP)) |  // entering S4, quick devices (CTX is 1 clock but went valid after being written, not affected by P_A)
 			( P_RW_n & C_S6 & (MATCH_PMAP_PS | MATCH_PMAP_MA)) |  // entering S6, physical map needed an extra cycle
-			( P_RW_n & C_S8 & (MATCH_TIMER | MATCH_PROM | MATCH_MEMX | MATCH_SERIAL)) | // entering S8, devices going through the MMU
+			( P_RW_n & C_S8 & (MATCH_TIMER | MATCH_PROM | MATCH_SERIAL)) | // entering S8, devices going through the MMU
+`ifdef MEM_SIM_ONLY
+		        ( P_RW_n & C_S8 & (MATCH_MEMX)) | // entering S8, memory going through the MMU
+`else
+		        ( P_RW_n & w_ack & (MATCH_MEMX)) | // entering S8, memory going through the MMU
+`endif
 			/* writes */
 			(~P_RW_n & C_S4 & (MATCH_CTX | MATCH_SYSEN | MATCH_DIAG)) | // entering S4, quick devices
 			(~P_RW_n & C_S4 & (MATCH_SMAP)) |  // entering S4, quick devices (CTX is 1 clock but went valid after being written, not affected by P_A)
 			(~P_RW_n & C_S6 & (MATCH_PMAP_PS | MATCH_PMAP_MA)) |  // entering S6, physical map needed an extra cycle
-			(~P_RW_n & C_S8 & (MATCH_TIMER | MATCH_MEMX | MATCH_SERIAL)) | // entering S8, devices going through the MMU
+			(~P_RW_n & C_S8 & (MATCH_TIMER |              MATCH_SERIAL)) | // entering S8, devices going through the MMU
+`ifdef MEM_SIM_ONLY
+		        (~P_RW_n & C_S8 & (MATCH_MEMX)) | // entering S8, memory going through the MMU
+`else
+		        (~P_RW_n & w_ack & (MATCH_MEMX)) | // entering S8, memory going through the MMU
+`endif
 			
 			1'b0);
    
