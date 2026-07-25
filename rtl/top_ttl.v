@@ -46,6 +46,7 @@
 
 `include "m68010_model.v"
 `include "m68010_cosim.v"
+`include "m68010_suska.v"
 `include "p2_ram.v"
 `include "dpram_128k.v"
 `include "p2_video.v"
@@ -192,7 +193,7 @@ module top(input clk40);
 `ifndef cosim
    m68010_model m68010(
 `else
-   m68010_cosim m68010(
+   m68010_suska m68010(
 `endif
 		 .C100(C100),
 		 .P_VPA_n(P_VPA_n),
