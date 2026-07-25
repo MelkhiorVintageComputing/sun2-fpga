@@ -6,8 +6,13 @@
 module tb();
    reg clk40;
    reg cpu_trace = 0;
+   reg sys_reset;
+   wire rx, tx;
    
-   top dut(.clk40(clk40));
+   top dut(.clk40(clk40),
+	   .sys_reset(sys_reset),
+	   .tx(tx),
+	   .rx(rx));
 
    always
      begin
@@ -22,7 +27,8 @@ module tb();
        $dumpfile("sun2.vcd");
        $dumpvars(0, dut.sun2.tolog);
        $dumpoff;
-       
+       #5 sys_reset <= 1'b1;
+       #2000 sys_reset <= 1'b0;
        
        //#1000 $dumpoff;
        //#500000 $finish;

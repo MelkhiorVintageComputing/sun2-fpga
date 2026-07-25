@@ -1,6 +1,11 @@
 `timescale 1ns / 1ps
 
-module top(input clk40);
+module top(input clk40,
+	   input  sys_reset,
+	   /* serial */
+	   output tx,
+	   input  rx
+	   );
    wire C100;
    wire P_VPA_n;
    wire P_BERR_n;
@@ -30,8 +35,10 @@ module top(input clk40);
    wire        DATA_EN;
    wire [31:0] ADR_OUT;
    
+   
    sun2_fpga sun2(.clk40(clk40),
 		  .C100(C100),
+		  .sys_reset(sys_reset),
 		  .P_VPA_n(P_VPA_n),
 		  .P_BERR_n(P_BERR_n),
 		  .P_DTACK_n(P_DTACK_n),
@@ -58,31 +65,30 @@ module top(input clk40);
 		  
 		  .P_DIN(P_DIN),
 		  .P_DOUT(P_DOUT),
-		  .BUS_EN(BUS_EN)
+		  .BUS_EN(BUS_EN),
+
+		  .tx(tx),
+		  .rx(rx)
 		  );
    
    wire        RESET_INn;
    wire        HALT_INn;
    wire        RESET_OUT;
-   wire        HALT_OUTn;
+   wire        HALT_OUTn; // ignored
    
-   assign RESET_INn = P_RESET_n; // FIXME, all that mess
-   wire        RESET_OUT_bis;
-   assign RESET_OUT = RESET_INn ? RESET_OUT_bis : 1'b0;
-   wire        HALT_INn, HALT_OUTn;
-   assign (strong0, highz1) P_HALT_n = HALT_OUTn;
-   assign HALT_INn = P_HALT_n;
-  
-   pullup(RESET_INn);
+   assign RESET_INn = ~sys_reset; /* board reset => reset CPU */
+   assign P_RESET_n = ~sys_reset;// & ~RESET_OUT; /* board reset or CPU reset => reset system */
+   assign HALT_INn = ~sys_reset;// & ~RESET_OUT; /* board reset => reset CPU (HALTn seem needed) */
 
    assign P_A = ADR_OUT[23:1];
-   
    
    WF68K10_TOP suska_68k10(.CLK(C100),
 			   .DATA_IN(P_DOUT), // IN for CPU, OUT for sun2
 			   .BERRn(P_BERR_n),
 			   .RESET_INn(RESET_INn),
+			   .RESET_OUT(RESET_OUT),
 			   .HALT_INn(HALT_INn),
+			   .HALT_OUTn(HALT_OUTn),
 			   .AVECn(1'b1),
 			   .IPLn({IPL2_n, IPL1_n, IPL0_n}),
 			   .DTACKn(P_DTACK_n),
@@ -93,8 +99,6 @@ module top(input clk40);
 			   .ADR_OUT(ADR_OUT),
 			   .DATA_OUT(P_DIN), // OUT for CPU, IN for sun2
 			   .DATA_EN(DATA_EN),
-			   .RESET_OUT(RESET_OUT_bis),
-			   .HALT_OUTn(HALT_OUTn),
 			   .FC_OUT(P_FC),
 			   .ASn(P_AS_n),
 			   .RWn(P_RW_n),

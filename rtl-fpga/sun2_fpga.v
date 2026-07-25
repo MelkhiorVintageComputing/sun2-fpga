@@ -9,14 +9,15 @@
 
 module sun2_fpga(input 	       clk40,
 		 output        C100,
+		 input 	       sys_reset, // board reset => also CPU reset
 		 output        P_VPA_n,
 		 output        P_BERR_n,
 		 output        P_DTACK_n,
 		 output        P_BR_n,
 		 output        P_BGACK_n,
 
-		 inout 	       P_RESET_n, // FIXME
-		 inout 	       P_HALT_n, // FIXME
+		 input 	       P_RESET_n, // CPU reset, not full board
+		 output        P_HALT_n, // checkme
 
 		 input 	       P_AS_n,
 		 input 	       P_RW_n,
@@ -35,22 +36,18 @@ module sun2_fpga(input 	       clk40,
 
 		 input [15:0]  P_DIN,
 		 output [15:0] P_DOUT,
-		 input DATA_EN
+		 input 	       DATA_EN,
+		 /* serial */
+		 output 	tx,
+		 input 		rx
 		   );
    // 180° clock
    wire 	       C100_n;
-   
-   pullup(P_BR_n); // FIXME
-   pullup(P_BGACK_n);
 
-   pullup(P_RESET_n); // FIXME
-   pullup(P_HALT_n);
+   assign P_BR_n = 1'b1; // FIXME for actual devices
+   assign P_BGACK_n = 1'b1; // FIXME for actual devices
    
-   pullup(P_AS_n); // FIXME
-   pullup(P_RW_n);
-   pullup(P_UDS_n);
-   pullup(P_LDS_n);
-   pullup(P_BG_n);
+   assign P_HALT_n = 1'b1; // FIXME ?
 
    wire CLK;
    assign CLK = C100;
@@ -62,7 +59,6 @@ module sun2_fpga(input 	       clk40,
 	#5 POR_n = 1'b0;
 	#2000 POR_n = 1'b1;
      end
-   assign P_RESET_n = POR_n; // FIXME
    assign P_HALT_n = POR_n;
 
    // layers shortcuts
@@ -334,9 +330,12 @@ module sun2_fpga(input 	       clk40,
    wire [7:0] 			 serial_out;
    wire 			 serial_en;
    wire 			 serial_int_n; // FIXME: DOME
-   wire 			 TxDA, TxDA_EN;
+   wire 			 RxDA, TxDA, TxDA_EN;
+
+   assign tx = TxDA;
+   assign RxDA = rx;
   
-   tolog tolog(.CLK(C100), .TxDA(TxDA)); // so we can trace only TxDA in the VCD, pulseview doesn't like too many signals
+   tolog tolog(.TxDA(TxDA)); // so we can trace only TxDA in the VCD, pulseview doesn't like too many signals
    
    SCC8530_TOP serial(
 		      // System controls:
@@ -361,7 +360,7 @@ module sun2_fpga(input 	       clk40,
 		      .INTn(serial_int_n), // out // Open drain in 5380.
 		      
 		      // Serial Data:
-		      .RxDA(), // in
+		      .RxDA(RxDA), // in
 		      .TxDA(TxDA), // out
 		      .TxDA_EN(TxDA_EN), // out // This is an enhancement over the original chip.
 		      .RxDB(), // in
