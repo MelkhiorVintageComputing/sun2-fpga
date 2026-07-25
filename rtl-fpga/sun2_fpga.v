@@ -340,7 +340,7 @@ module sun2_fpga(input 	       clk40,
 							  .WRu(WR & MATCH_MEM & ~P_UDS_n),
 							  .din(P_DIN),
 							  .dout(mem_out)
-							  );					  );
+							  );
 `else // !`ifdef SIM_ONLY
    wire [15:0] 			 wishbone_out;
    wire 			 w_ack;
