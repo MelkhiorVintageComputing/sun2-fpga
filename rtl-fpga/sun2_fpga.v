@@ -20,7 +20,8 @@
 `include "ttl_am9513.v"
 `include "tolog.v"
 
-module sun2_fpga(input 	       clk40,
+module sun2_fpga(input         cpu_clk,
+		 input 	       clk40,
 		 input 	       clk4m9152,
 		 output        C100,
 		 input 	       sys_reset, // board reset => also CPU reset
@@ -53,7 +54,9 @@ module sun2_fpga(input 	       clk40,
 		 input 	       DATA_EN,
 		 /* serial */
 		 output        tx,
-		 input 	       rx
+		 input 	       rx,
+		 /* debug */
+		 output        diag_leds
 		   );
    // 180° clock
    wire 	       C100_n;
@@ -227,6 +230,7 @@ module sun2_fpga(input 	       clk40,
 		    .dout(leds),
 		    .CLR_n(1'b1)
 		    );
+   assign diag_leds = leds;
    
    // Bus Error Register, read-only
    wire [7:0] 			 berr_in;
@@ -310,7 +314,7 @@ module sun2_fpga(input 	       clk40,
 		   .RD_n(~MATCH_TIMER | ~RD),
 		   .WR_n(~MATCH_TIMER | ~WR),
 		   .X1(),
-		   .X2(C100), // FIXME
+		   .X2(C100), // FIXME!
 		   .FOUT(FOUT),
 		   .SRC1(1'b0),
 		   .SRC2(1'b0),
@@ -588,7 +592,8 @@ module sun2_fpga(input 	       clk40,
       //$flushlog;
    end // always @ (leds)
 
-   // CLOCKS // FIXME
+   // CLOCKS
+`ifdef CPU_CLK_MULTIPLE_SERIAL
    reg clk20;
    reg clk10;
    initial
@@ -600,6 +605,10 @@ module sun2_fpga(input 	       clk40,
    always @(posedge clk20) clk10 <= ~clk10;
    assign C100 = clk10;
    assign C100_n = ~clk10;
+`else
+   assign C100   =  cpu_clk;
+   assign C100_n = ~cpu_clk;
+`endif
 
    // interrupts
    wire 	       INT7_n, INT6_n, INT5_n, INT4_n, INT3_n, INT2_n, INT1_n;

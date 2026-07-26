@@ -1,11 +1,15 @@
 `timescale 1ns / 1ps
 
-module top(input clk40,
+module top(input cpu_clk,
+	   input  clk40,
 	   input  clk4m9152,
 	   input  sys_reset,
 	   /* serial */
 	   output tx,
-	   input  rx
+	   input  rx,
+
+	   /* debug */
+	   output diag_leds
 	   );
    wire C100;
    wire P_VPA_n;
@@ -37,7 +41,8 @@ module top(input clk40,
    wire [31:0] ADR_OUT;
    
    
-   sun2_fpga sun2(.clk40(clk40),
+   sun2_fpga sun2(.cpu_clk(cpu_clk),
+		  .clk40(clk40),
 		  .C100(C100),
 		  .clk4m9152(clk4m9152),
 		  .sys_reset(sys_reset),
@@ -70,7 +75,9 @@ module top(input clk40,
 		  .BUS_EN(BUS_EN),
 
 		  .tx(tx),
-		  .rx(rx)
+		  .rx(rx),
+
+		  .diag_leds(diag_leds)
 		  );
    
    wire        RESET_INn;

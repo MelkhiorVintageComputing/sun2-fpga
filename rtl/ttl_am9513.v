@@ -2,6 +2,7 @@
 // // Partial implementation of AMD 9513 timer module
 //
 
+`define SPLIT_DATA_BUS
 
 module ttl_am9513 (
 `ifdef SPLIT_DATA_BUS

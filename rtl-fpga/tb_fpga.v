@@ -9,12 +9,18 @@ module tb();
    reg sys_reset;
    wire rx, tx;
    wire clk4m9152;
+   wire cpu_clk;
+   reg cpu_clk_reg;
    
-   top dut(.clk40(clk40),
+   
+   top dut(.cpu_clk(cpu_clk),
+	   .clk40(clk40),
 	   .clk4m9152(clk4m9152),
 	   .sys_reset(sys_reset),
 	   .tx(tx),
-	   .rx(rx));
+	   .rx(rx),
+	   .diag_leds() // $display deeper, wired in Litex implementation 
+	   );
 
    always
      begin
@@ -23,6 +29,15 @@ module tb();
 	#12.71565755208333333000 clk40 = 1;
      end
 
+   always
+     begin
+	// 12.5 Mhz test clock for split-clock SCC
+	#40 cpu_clk_reg = 0;
+	#40 cpu_clk_reg = 1;
+     end
+   assign cpu_clk = cpu_clk_reg;
+   
+	
   initial
     begin
        $timeformat(-9, 0, "ns", 7);
