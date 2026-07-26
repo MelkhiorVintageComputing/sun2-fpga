@@ -10,6 +10,8 @@ module top(input         cpu_clk,
 
 	   /* debug */
 	   output [7:0]  diag_leds,
+	   output 	 en_boot,
+	   output [7:0]  todebug,
 
 	   /* wishbone */
 	   output 	 wb_cyc_o,
@@ -87,7 +89,10 @@ module top(input         cpu_clk,
 		  .tx(tx),
 		  .rx(rx),
 
-		  .diag_leds(diag_leds)
+		  .diag_leds(diag_leds),
+		  .en_boot(en_boot),
+		  .todebug(todebug)
+		  //.todebug()
 		  );
    
    wire        RESET_INn;
@@ -102,6 +107,7 @@ module top(input         cpu_clk,
    assign P_A = ADR_OUT[23:1];
 
    wire        P_RMC_n; // unused
+   wire [31:0] PC;
    
    WF68K10_TOP suska_68k10(.CLK(C100),
 			   .DATA_IN(P_DOUT), // IN for CPU, OUT for sun2
@@ -131,7 +137,10 @@ module top(input         cpu_clk,
 			    .E(),
 			    .VMAn(),
 			    .VMA_EN(),
-			   .BGn(P_BG_n));
+			   .BGn(P_BG_n),
+			   .PC(PC));
+
+   //assign todebug = PC[7:0] ;
 
    //`include "check.v"
    

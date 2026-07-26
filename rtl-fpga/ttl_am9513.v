@@ -123,13 +123,14 @@ module ttl_am9513 (
      if (~reset_n) begin
 	for (i = 1; i <= 5; i = i + 1)
 	  begin
-	     ctr_mode[i] = 0;
-	     ctr_load[i] = 0;
-	     ctr_hold[i] = 0;
-	     ctr_cntr[i] = 0;
+	     ctr_mode[i] <= 0;
+	     ctr_load[i] <= 0;
+	     ctr_hold[i] <= 0;
+	     ctr_cntr[i] <= 0;
 	  end
-	data_out = 0;
-	cmd = 0;
+	ctr_mode[1] <= 16'h0b00;
+	data_out <= 0;
+	cmd <= 0;
      end
    
      if (write) begin

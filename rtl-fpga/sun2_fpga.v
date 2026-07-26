@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-// `define MEM_SIM_ONLY
+//`define MEM_SIM_ONLY
 
 `define SERIAL_VZ50938
 
@@ -51,6 +51,8 @@ module sun2_fpga(input         cpu_clk,
 		 input 	       rx,
 		 /* debug */
 		 output [7:0]  diag_leds,
+		 output        en_boot,
+		 output [7:0]  todebug,
 		 /* wishbone */
 		 output        wb_cyc_o,
 		 output        wb_stb_o,
@@ -110,7 +112,7 @@ module sun2_fpga(input         cpu_clk,
 	     C_S9 <= 1'b0;
 	  end
      end
-   reg C_S4, C_S6, C_S8, C_S10, C_S12, C_S14, TIMEOUT;
+   reg C_S4, C_S6, C_S8, C_S10, C_S12, C_S14, C_S16, C_S18, TIMEOUT;
    always @(posedge C100)
      begin
 	if (~P_AS_n & C_S3) C_S4 <= 1'b1;
@@ -119,7 +121,9 @@ module sun2_fpga(input         cpu_clk,
 	if (~P_AS_n & C_S8) C_S10 <= 1'b1;
 	if (~P_AS_n & C_S10) C_S12 <= 1'b1;
 	if (~P_AS_n & C_S12) C_S14 <= 1'b1;
-	if (~P_AS_n & C_S14) TIMEOUT <= 1'b1;
+	if (~P_AS_n & C_S14) C_S16 <= 1'b1;
+	if (~P_AS_n & C_S16) C_S18 <= 1'b1;
+	if (~P_AS_n & C_S18) TIMEOUT <= 1'b1;
 	if ( P_AS_n)
 	  begin
 	     C_S4 <= 1'b0;
@@ -128,6 +132,8 @@ module sun2_fpga(input         cpu_clk,
 	     C_S10 <= 1'b0;
 	     C_S12 <= 1'b0;
 	     C_S14 <= 1'b0;
+	     C_S16 <= 1'b0;
+	     C_S18 <= 1'b0;
 	     TIMEOUT <= 1'b0;
 	  end
      end
@@ -151,6 +157,7 @@ module sun2_fpga(input         cpu_clk,
 
    wire 			 MATCH_PROM_BOOT, BOOT_n;
    assign MATCH_PROM_BOOT  = ((FC_SPROG) & (~BOOT_n)); // at boot (bit from SYSEN): all Supervisor Program are from the PROM
+   assign en_boot = ~BOOT_n;
 
    wire 			 WR;
    assign WR = (~P_UDS_n | ~P_LDS_n) & ~P_AS_n & ~P_RW_n;
@@ -235,9 +242,10 @@ module sun2_fpga(input         cpu_clk,
 		    .din(P_DIN[7:0]),
 		    .WR(WR & MATCH_DIAG & C_S4),
 		    .dout(leds),
-		    .CLR_n(1'b1)
+		    //.CLR_n(1'b1)
+		    .CLR_n(~sys_reset)
 		    );
-   assign diag_leds = leds;
+   assign diag_leds = ~leds;
    
    // Bus Error Register, read-only
    wire [7:0] 			 berr_in;
@@ -308,7 +316,11 @@ module sun2_fpga(input         cpu_clk,
    assign MATCH_ROPS     = (FC_GENERAL) & (TYPE == 3'h1) & (ma_pmap2devices == 12'h006) & C_S6; // not in prime
    assign MATCH_RTC      = (FC_GENERAL) & (TYPE == 3'h1) & (ma_pmap2devices == 12'h007) & C_S6; // not in prime
    
-   assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:8] == 4'h0) & C_S6; // "physically" installed
+`ifdef MEM_SIM_ONLY
+   assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:8] == 4'h0) & C_S6; // "physically" installed (simulation)
+`else
+   assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:0] < 12'h800) & C_S6; // "physically" installed (FPGA)
+`endif
    assign MATCH_MEMX     = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:0] < 12'hE00) & C_S6; // addressable, for DTACK (so auto-sizing works, as it uses "wrong values" rather than bus error in the Rev R ROM)
 
    wire [15:0] 			 timer_out;
@@ -634,6 +646,9 @@ module sun2_fpga(input         cpu_clk,
    assign INT5_n = ~timer_int[2] & ~timer_int[3] & ~timer_int[4] & ~timer_int[5];
    assign INT6_n = serial_int_n;
    assign INT7_n = ~timer_int[1];
+
+   assign todebug = { P_FC, BOOT_n,
+   		      ~P_AS_n, ~P_RW_n, ~P_DTACK_n, TIMEOUT };
    
    
 endmodule // sun2_fpga
