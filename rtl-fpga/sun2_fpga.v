@@ -146,7 +146,7 @@ module sun2_fpga(input         cpu_clk,
    wire [23:0] 			 pa_forshow; // more readbable as a wave, no functional use
    assign pa_forshow = {1'b0, ma_pmap2devices, P_A[10:1], 1'b0};
 
-   wire 			 MATCH_PROM_BOOT;
+   wire 			 MATCH_PROM_BOOT, BOOT_n;
    assign MATCH_PROM_BOOT  = ((FC_SPROG) & (~BOOT_n)); // at boot (bit from SYSEN): all Supervisor Program are from the PROM
 
    wire 			 WR;
@@ -260,7 +260,7 @@ module sun2_fpga(input         cpu_clk,
 		   .CLR_n(POR_n)
 		   );
    /* split the 8 system bits by name */
-   wire 			 EN_PAR, EN_INT1, EN_INT2, EN_INT3, EN_PARERR, EN_DVMA, EN_INT, BOOT_n;
+   wire 			 EN_PAR, EN_INT1, EN_INT2, EN_INT3, EN_PARERR, EN_DVMA, EN_INT;
    assign EN_PAR    = sys_out[0];
    assign EN_INT1   = sys_out[1];
    assign EN_INT2   = sys_out[2];

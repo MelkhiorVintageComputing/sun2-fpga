@@ -90,6 +90,8 @@ module top(input cpu_clk,
    assign HALT_INn = ~sys_reset;// & ~RESET_OUT; /* board reset => reset CPU (HALTn seem needed) */
 
    assign P_A = ADR_OUT[23:1];
+
+   wire        P_RMC_n; // unused
    
    WF68K10_TOP suska_68k10(.CLK(C100),
 			   .DATA_IN(P_DOUT), // IN for CPU, OUT for sun2
@@ -119,7 +121,7 @@ module top(input cpu_clk,
 			    .E(),
 			    .VMAn(),
 			    .VMA_EN(),
-			   .BGn(BGn));
+			   .BGn(P_BG_n));
 
    `include "check.v"
    

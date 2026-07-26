@@ -21,6 +21,7 @@ module ctx_reg(input CLK,
      end;
    assign cx = USER_n ? dout[10:8] : dout[2:0];
    
-endmodule;
+endmodule // ctx_reg
+
 
 
