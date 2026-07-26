@@ -81,6 +81,9 @@ module sun2_fpga(input         cpu_clk,
    // layers shortcuts
    wire FC_CTRLLAYER;
    wire FC_CPUCYCLE;
+   wire FC_SPROG;
+   wire FC_GENERAL;
+   
    assign FC_CTRLLAYER = (P_FC == 3'h3);
    assign FC_CPUCYCLE  = (P_FC == 3'h7);
    assign FC_SPROG     = (P_FC == 3'h6);
@@ -130,6 +133,7 @@ module sun2_fpga(input         cpu_clk,
    // can match early because they only depend on the P_A address
    wire 			 MATCH_CTX, MATCH_SMAP, MATCH_PMAP_PS, MATCH_PMAP_MA;
    wire 			 MATCH_IDPROM, MATCH_DIAG, MATCH_BERR, MATCH_SYSEN;
+   wire 			 MATCH_MEM, MATCH_MEMX;
    assign MATCH_PMAP_PS = (FC_CTRLLAYER) & (P_A[10:4] == 7'h0) & (P_A[3:1] == 3'h0); // Long, MSW
    assign MATCH_PMAP_MA = (FC_CTRLLAYER) & (P_A[10:4] == 7'h0) & (P_A[3:1] == 3'h1); // Long, LSW
    assign MATCH_SMAP    = (FC_CTRLLAYER) & (P_A[10:4] == 7'h0) & (P_A[3:1] == 3'h2);
