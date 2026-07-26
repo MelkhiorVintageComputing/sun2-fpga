@@ -1,15 +1,25 @@
 `timescale 1ns / 1ps
 
-module top(input cpu_clk,
-	   input  clk40,
-	   input  clk4m9152,
-	   input  sys_reset,
+module top(input         cpu_clk,
+	   input 	 clk40,
+	   input 	 clk4m9152,
+	   input 	 sys_reset,
 	   /* serial */
-	   output tx,
-	   input  rx,
+	   output 	 tx,
+	   input 	 rx,
 
 	   /* debug */
-	   output diag_leds
+	   output [7:0]  diag_leds,
+
+	   /* wishbone */
+	   output 	 wb_cyc_o,
+	   output 	 wb_stb_o,
+	   output [29:0] wb_adr_o,
+	   output [31:0] wb_dat_o,
+	   output [3:0]  wb_sel_o,
+	   output 	 wb_we_o,
+	   input [31:0]  wb_dat_i,
+	   input 	 wb_ack_i
 	   );
    wire C100;
    wire P_VPA_n;
@@ -123,6 +133,6 @@ module top(input cpu_clk,
 			    .VMA_EN(),
 			   .BGn(P_BG_n));
 
-   `include "check.v"
+   //`include "check.v"
    
 endmodule

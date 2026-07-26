@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-`define MEM_SIM_ONLY
+// `define MEM_SIM_ONLY
 
 `define SERIAL_VZ50938
 
@@ -13,12 +13,6 @@
 `ifdef SERIAL_SUSKA
  `define FAST_SERIAL
 `endif
-
-
-`include "ttl_74F151.v"
-`include "ttl_74LS148.v"
-`include "ttl_am9513.v"
-`include "tolog.v"
 
 module sun2_fpga(input         cpu_clk,
 		 input 	       clk40,
@@ -56,7 +50,16 @@ module sun2_fpga(input         cpu_clk,
 		 output        tx,
 		 input 	       rx,
 		 /* debug */
-		 output        diag_leds
+		 output [7:0]  diag_leds,
+		 /* wishbone */
+		 output        wb_cyc_o,
+		 output        wb_stb_o,
+		 output [29:0] wb_adr_o,
+		 output [31:0] wb_dat_o,
+		 output [3:0]  wb_sel_o,
+		 output        wb_we_o,
+		 input [31:0]  wb_dat_i,
+		 input 	       wb_ack_i
 		   );
    // 180° clock
    wire 	       C100_n;
@@ -311,6 +314,7 @@ module sun2_fpga(input         cpu_clk,
    wire [15:0] 			 timer_out;
    wire 			 FOUT, timer_int[5:1]; /* FOUT for completeness, not et implemented in the TTL code */
    ttl_am9513 timer (
+		     .reset_n(~sys_reset),
 		   .DIN(P_DIN),
 		   .DOUT(timer_out),
 		   .CD_n(P_A[1]), // checkme: latched in the original (LA1)

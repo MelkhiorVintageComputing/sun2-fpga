@@ -33,7 +33,7 @@ module sun2_wishbone_bridge (input SET_ENABLE,
    assign wb_cyc_o = ~ENABLE ? 1'b0 : (MATCH_MEM) & ~wb_ack_i_prev;
    assign wb_stb_o = ~ENABLE ? 1'b0 : (MATCH_MEM) & ~wb_ack_i_prev;
    assign wb_adr_o = ~ENABLE ? 30'h00000000 : (MATCH_MEM ? {8'h0, P_ADR_IN[23:2]} : // wishbone word-addressed, memory is based at 0
-						30'h0C0FFEEE)));
+						30'h0C0FFEEE);
 `ifdef WB_LITTLE_ENDIAN
    assign wb_dat_o = ~ENABLE ? 32'h00000000 : {P_DATA_IN[ 7: 0], // wishbone little-endian
 					       P_DATA_IN[15: 8],

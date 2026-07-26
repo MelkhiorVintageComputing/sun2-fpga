@@ -19,7 +19,17 @@ module tb();
 	   .sys_reset(sys_reset),
 	   .tx(tx),
 	   .rx(rx),
-	   .diag_leds() // $display deeper, wired in Litex implementation 
+	   .diag_leds(), // $display deeper, wired in Litex implementation 
+	   
+	   // wishbone
+	   .wb_cyc_o(),
+	   .wb_stb_o(),
+	   .wb_adr_o(),
+	   .wb_dat_o(),
+	   .wb_sel_o(),
+	   .wb_we_o(),
+	   .wb_dat_i(),
+	   .wb_ack_i()
 	   );
 
    always
