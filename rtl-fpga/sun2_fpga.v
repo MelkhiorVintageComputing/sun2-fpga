@@ -112,7 +112,7 @@ module sun2_fpga(input         cpu_clk,
 	     C_S9 <= 1'b0;
 	  end
      end
-   reg C_S4, C_S6, C_S8, C_S10, C_S12, C_S14, C_S16, C_S18, TIMEOUT;
+   reg C_S4, C_S6, C_S8, C_S10, C_S12, C_S14, C_S16, C_S18, C_S20, C_S22, C_S24, TIMEOUT;
    always @(posedge C100)
      begin
 	if (~P_AS_n & C_S3) C_S4 <= 1'b1;
@@ -123,7 +123,10 @@ module sun2_fpga(input         cpu_clk,
 	if (~P_AS_n & C_S12) C_S14 <= 1'b1;
 	if (~P_AS_n & C_S14) C_S16 <= 1'b1;
 	if (~P_AS_n & C_S16) C_S18 <= 1'b1;
-	if (~P_AS_n & C_S18) TIMEOUT <= 1'b1;
+	if (~P_AS_n & C_S18) C_S20 <= 1'b1;
+	if (~P_AS_n & C_S20) C_S22 <= 1'b1;
+	if (~P_AS_n & C_S22) C_S24 <= 1'b1;
+	if (~P_AS_n & C_S24 & ~MATCH_MEM) TIMEOUT <= 1'b1;
 	if ( P_AS_n)
 	  begin
 	     C_S4 <= 1'b0;
@@ -134,6 +137,9 @@ module sun2_fpga(input         cpu_clk,
 	     C_S14 <= 1'b0;
 	     C_S16 <= 1'b0;
 	     C_S18 <= 1'b0;
+	     C_S20 <= 1'b0;
+	     C_S22 <= 1'b0;
+	     C_S24 <= 1'b0;
 	     TIMEOUT <= 1'b0;
 	  end
      end
@@ -153,6 +159,12 @@ module sun2_fpga(input         cpu_clk,
    assign MATCH_SYSEN   = (FC_CTRLLAYER) & (P_A[10:4] == 7'h0) & (P_A[3:1] == 3'h7);
 
    wire [23:0] 			 pa_forshow; // more readbable as a wave, no functional use
+   // MMU & control layers
+   wire [15:0] 			 ctx_out;
+   wire [7:0] 			 ia_smap2pmap;
+   wire [11:0] 			 ma_pmap2devices;
+   wire [11:0] 			 ps_pmap2devices;
+   
    assign pa_forshow = {1'b0, ma_pmap2devices, P_A[10:1], 1'b0};
 
    wire 			 MATCH_PROM_BOOT, BOOT_n;
@@ -164,11 +176,6 @@ module sun2_fpga(input         cpu_clk,
    wire 			 RD;
    assign RD = (~P_UDS_n | ~P_LDS_n) & ~P_AS_n &  P_RW_n;
 
-   // MMU & control layers
-   wire [15:0] 			 ctx_out;
-   wire [7:0] 			 ia_smap2pmap;
-   wire [11:0] 			 ma_pmap2devices;
-   wire [11:0] 			 ps_pmap2devices;
 
    sun2_mmu mmu(.CLK(C100),
 		/* matching */
@@ -209,10 +216,10 @@ module sun2_fpga(input         cpu_clk,
    
 
    // combinatorial protection check on Page Map output, valid alongside ps_pmap2devices
-   wire 			 PROTERR, PROTERR_n;
-   wire 			 PROTERR_raw, PROTERR_raw_n;
+   wire       PROTERR; //, PROTERR_n;
+   wire       PROTERR_raw, PROTERR_raw_n;
    assign PROTERR   = PROTERR_raw   &  C_S8 & FC_GENERAL; // can't have a protection error unless the MMU is doing its job
-   assign PROTERR_n = PROTERR_raw_n | ~C_S8 & FC_GENERAL;
+   //assign PROTERR_n = PROTERR_raw_n | ~C_S8 & FC_GENERAL;
    
    ttl_74F151 gen_proterr(.D0(ps_pmap2devices[8]),
 			  .D1(ps_pmap2devices[7]),
@@ -317,9 +324,9 @@ module sun2_fpga(input         cpu_clk,
    assign MATCH_RTC      = (FC_GENERAL) & (TYPE == 3'h1) & (ma_pmap2devices == 12'h007) & C_S6; // not in prime
    
 `ifdef MEM_SIM_ONLY
-   assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:8] == 4'h0) & C_S6; // "physically" installed (simulation)
+   assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:8] == 4'h0) & C_S6; // "physically" installed (simulation => reduced)
 `else
-   assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:0] < 12'h800) & C_S6; // "physically" installed (FPGA)
+   assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:0] < 12'h800) & C_S6; // "physically" installed (FPGA => 4 MiB)
 `endif
    assign MATCH_MEMX     = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:0] < 12'hE00) & C_S6; // addressable, for DTACK (so auto-sizing works, as it uses "wrong values" rather than bus error in the Rev R ROM)
 
@@ -368,17 +375,19 @@ module sun2_fpga(input         cpu_clk,
 `else // !`ifdef SIM_ONLY
    wire [15:0] 			 wishbone_out;
    wire 			 w_ack;
+   wire 				 L_M_MAP_SEEN;
+   assign L_M_MAP_SEEN = (leds == 8'h8F); 
    
    sun2_wishbone_bridge wbridge(.CLK(C100),
 				.RESET_n(~sys_reset), // don't reset on CPU-only reset, don't want to loose memory access then
-				.SET_ENABLE(1'b1),
-				.P_ADR_IN({5'h0, ma_pmap2devices[7:0], P_A[10:1]}), // full physical
+				.SET_ENABLE(L_M_MAP_SEEN),
+				.P_ADR_IN({1'h0, ma_pmap2devices[11:0], P_A[10:1]}), // full physical (4 MiB)
 				.P_DATA_IN(P_DIN),
 				.P_DATA_OUT(wishbone_out),
-				.P_RW_n(WR),
+				.P_RW_n(P_RW_n),
 				.EN_LBYTE(~P_LDS_n),
 				.EN_UBYTE(~P_UDS_n),
-				.MATCH_MEM(MATCH_MEM),
+				.MATCH_MEM(MATCH_MEM & ~MATCH_PROM_BOOT),
 				.W_ACK(w_ack),
      
 				// wishbone
@@ -557,7 +566,9 @@ module sun2_fpga(input         cpu_clk,
 `ifdef MEM_SIM_ONLY
 		        ( P_RW_n & C_S8 & (MATCH_MEMX)) | // entering S8, memory going through the MMU
 `else
-		        ( P_RW_n & w_ack & (MATCH_MEMX)) | // entering S8, memory going through the MMU
+		        ( P_RW_n & w_ack & (MATCH_MEM)) | // entering S8, memory going through the MMU
+			// memory sizing doesn't like timeout ? so ack when out-of-range
+		        ( P_RW_n & C_S8 & (MATCH_MEMX & ~MATCH_MEM)) | // entering S8, memory going through the MMU
 `endif
 			/* writes */
 			(~P_RW_n & C_S4 & (MATCH_CTX | MATCH_SYSEN | MATCH_DIAG)) | // entering S4, quick devices
@@ -568,6 +579,7 @@ module sun2_fpga(input         cpu_clk,
 		        (~P_RW_n & C_S8 & (MATCH_MEMX)) | // entering S8, memory going through the MMU
 `else
 		        (~P_RW_n & w_ack & (MATCH_MEMX)) | // entering S8, memory going through the MMU
+		        (~P_RW_n & C_S8 & (MATCH_MEMX & ~MATCH_MEM)) | // entering S8, memory going through the MMU
 `endif
 			
 			1'b0);
@@ -647,8 +659,17 @@ module sun2_fpga(input         cpu_clk,
    assign INT6_n = serial_int_n;
    assign INT7_n = ~timer_int[1];
 
-   assign todebug = { P_FC, BOOT_n,
-   		      ~P_AS_n, ~P_RW_n, ~P_DTACK_n, TIMEOUT };
+   reg 		       seen_mem_timeout;
+   always @(posedge cpu_clk)
+     begin
+	if (sys_reset) seen_mem_timeout <= 1'b0;
+	else if (MATCH_MEM & TIMEOUT) seen_mem_timeout <= 1'b1;
+     end
+   
+   //assign todebug = { P_FC, BOOT_n,
+   //		      ~P_AS_n, ~P_RW_n, ~P_DTACK_n, TIMEOUT };
+   assign todebug = { ~P_AS_n, ~P_RW_n, ~P_DTACK_n, TIMEOUT,
+		      1'b0, seen_mem_timeout, L_M_MAP_SEEN, MATCH_MEM };
    
    
 endmodule // sun2_fpga

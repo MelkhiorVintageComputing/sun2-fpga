@@ -70,7 +70,7 @@ module sun2_wishbone_bridge (input SET_ENABLE,
 `ifdef WB_LITTLE_ENDIAN
 	       P_DATA_OUT <= P_ADR_IN[1] ? { wb_dat_i[ 7: 0], wb_dat_i[15: 8] } : {wb_dat_i[23:16], wb_dat_i[31:24]};
 `else
-	       P_DATA_OUT <= P_ADR_IN[1] ? { wb_dat_i[31:24], wb_dat_i[23: 16] } : {wb_dat_i[15: 8], wb_dat_i[ 7: 0]};
+	       P_DATA_OUT <= P_ADR_IN[1] ? { wb_dat_i[31:24], wb_dat_i[23:16] } : {wb_dat_i[15: 8], wb_dat_i[ 7: 0]};
 `endif
 	    end // if (wb_ack_i & ~wb_we_o)
 	  //else if (P_DATA_OUT[31:16] != 16'h2BAD)

@@ -91,8 +91,18 @@ module top(input         cpu_clk,
 
 		  .diag_leds(diag_leds),
 		  .en_boot(en_boot),
-		  .todebug(todebug)
-		  //.todebug()
+		  .todebug(todebug),
+		  //.todebug(),
+				
+		  // wishbone
+		  .wb_cyc_o(wb_cyc_o),
+		  .wb_stb_o(wb_stb_o),
+		  .wb_adr_o(wb_adr_o),
+		  .wb_dat_o(wb_dat_o),
+		  .wb_sel_o(wb_sel_o),
+		  .wb_we_o(wb_we_o),
+		  .wb_dat_i(wb_dat_i),
+		  .wb_ack_i(wb_ack_i)
 		  );
    
    wire        RESET_INn;
@@ -137,10 +147,11 @@ module top(input         cpu_clk,
 			    .E(),
 			    .VMAn(),
 			    .VMA_EN(),
-			   .BGn(P_BG_n),
-			   .PC(PC));
+			   .BGn(P_BG_n)
+			   //,.PC(PC)
+			   );
 
-   //assign todebug = PC[7:0] ;
+   // assign todebug = PC[7:0] ;
 
    //`include "check.v"
    
