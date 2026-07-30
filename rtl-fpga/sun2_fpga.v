@@ -326,7 +326,8 @@ module sun2_fpga(input         cpu_clk,
 `ifdef MEM_SIM_ONLY
    assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:8] == 4'h0) & C_S6; // "physically" installed (simulation => reduced)
 `else
-   assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:0] < 12'h800) & C_S6; // "physically" installed (FPGA => 4 MiB)
+   //assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:0] < 12'h800) & C_S6; // "physically" installed (FPGA => 4 MiB)
+   assign MATCH_MEM      = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:0] < 12'hE00) & C_S6; // "physically" installed (FPGA => max of 7 MiB)
 `endif
    assign MATCH_MEMX     = (FC_GENERAL) & (TYPE == 3'h0) & (ma_pmap2devices[11:0] < 12'hE00) & C_S6; // addressable, for DTACK (so auto-sizing works, as it uses "wrong values" rather than bus error in the Rev R ROM)
 
