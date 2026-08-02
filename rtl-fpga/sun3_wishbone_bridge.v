@@ -76,10 +76,9 @@ module sun3_wishbone_bridge (input SET_ENABLE,
 	       P_DATA_OUT <= wb_dat_i;
 `endif
 	    end // if (wb_ack_i & ~wb_we_o)
-	  else if (P_DATA_OUT[31:16] != 16'h2BAD)
-	    P_DATA_OUT <= 32'h2BAD0000;
-	  else P_DATA_OUT[15:0] <= P_DATA_OUT[15:0] + 1;
-	
+	  //else if (P_DATA_OUT[31:16] != 16'h2BAD)
+	  //  P_DATA_OUT <= 32'h2BAD0000;
+	  //else P_DATA_OUT[15:0] <= P_DATA_OUT[15:0] + 1;
 	
      end
 

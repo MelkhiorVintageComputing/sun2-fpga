@@ -227,34 +227,35 @@ module sun3_fpga(/* clock, reset */
 
 `ifdef LANCE_ETHERNET
    reg [63:0] 			 last_dma_reg;
-   reg [255:0] 			 iv_reg;
+   //reg [255:0] 			 iv_reg;
    //reg [63:0] 			 iv_reg;
    
    assign last_dma = last_dma_reg;
    //assign last_dma = moredebug;
    
    //assign iv[255:192] = iv_reg;
-   assign iv = iv_reg;
+   //assign iv = iv_reg;
    
    
    always @(negedge CLK)
      begin
 	if (ethernet_dma_active & ~P_DSACK_n[0] & ~SUN3_RW_n
-	    & ( (ethernetdma_data_out[ 7: 0] == 8'hCE) |
-		(ethernetdma_data_out[23:16] == 8'hCE) |
-		(ethernetdma_addr_out[23:0] == 24'hF00048 )))
+	//  & ( (ethernetdma_data_out[ 7: 0] == 8'hCE) |
+	//	(ethernetdma_data_out[23:16] == 8'hCE) |
+	//	(ethernetdma_addr_out[23:0] == 24'hF00048 ))
+	    )
 	  // & ~SUN3_RW_n & ~P_DSACK_n[0] /* & ~ethernetdma_rw_n_out & ~dma_rec */) // & ~P_DSACK_n[0] 
 	  begin
 	     last_dma_reg[31: 0] <= ethernetdma_addr_out;
 	     last_dma_reg[63:32] <= ethernetdma_data_out; // P_DATA_OUT;
-	     iv_reg[ 31:  0] <= last_dma_reg[31: 0];
+	     /* iv_reg[ 31:  0] <= last_dma_reg[31: 0];
 	     iv_reg[ 63: 32] <= last_dma_reg[63:32];
 	     iv_reg[ 95: 64] <= iv_reg[ 31:  0];
 	     iv_reg[127: 96] <= iv_reg[ 63: 32];
 	     iv_reg[159:128] <= iv_reg[ 95: 64];
 	     iv_reg[191:160] <= iv_reg[127: 96];
 	     iv_reg[223:192] <= iv_reg[159:128];
-	     iv_reg[255:224] <= iv_reg[191:160];
+	     iv_reg[255:224] <= iv_reg[191:160]; */
 	  end
 	  
 	//if (ethernet_dma_active & ~P_DSACK_n[0] & ~SUN3_RW_n & (ethernetdma_addr_out == 32'hFFF00048))// & ~SUN3_RW_n & ~P_DSACK_n[0] /* & ~ethernetdma_rw_n_out & ~dma_rec */) // & ~P_DSACK_n[0] 
@@ -338,6 +339,7 @@ module sun3_fpga(/* clock, reset */
    //assign MATCH_CDATA   = (FC_CTRLLAYER) & (SUN3_ADR_IN[31:28] == 4'h9); // optional
    //assign MATCH_COPS    = (FC_CTRLLAYER) & (SUN3_ADR_IN[31:28] == 4'hA); // optional
    //assign MATCH_BOPS    = (FC_CTRLLAYER) & (SUN3_ADR_IN[31:28] == 4'hB); // optional
+   assign MATCH_CYCTR   = (FC_CTRLLAYER) & (SUN3_ADR_IN[31:28] == 4'hC); // custom: 32-bits always-on cycle counter
    /* 0xC to 0xE: unused */
    assign MATCH_UARTBYP = (FC_CTRLLAYER) & (SUN3_ADR_IN[31:28] == 4'hF);
 
@@ -498,6 +500,15 @@ module sun3_fpga(/* clock, reset */
       $display("\tEnable FPP: %x", EN_FPP);
       $display("\tBoot State (O => boot, 1 => normal): %x", EN_BOOTn);
    end // always @ (sys_out)
+
+
+   
+   // custom cycle counter
+   wire [31:0] 			 cyctr_out;
+   cyctr32bit_reg cyctr(.CLK(CLK),
+		      .dout(cyctr_out),
+		      .CLR_n(~sys_reset)
+		      );
 
    // PROM (two access modes: at boot using SUN3_A, or mapped but matched through MA), read-only
    // handled by the two match signals in the bus section, the PROM itself always output whatever is addressed
@@ -714,8 +725,8 @@ module sun3_fpga(/* clock, reset */
 		.UNIPLUS_BAUD_PATCH_B(0),
 		.AUTO_ENABLES_EN(0),
 		.RTXC_XTAL_FULLRATE_A(0),
-		.RTXC_XTAL_FULLRATE_B(0),
-		.RDWR_RESET_EN(1)
+		.RTXC_XTAL_FULLRATE_B(0)
+		,.RDWR_RESET_EN(1)
 		) serial (// System Interface
 			  .clk(CLK),           // CPU/bus clock (register file, interrupts, RR mux)
 			  .pclk(clk4m9152),       // Alternative BRG/serializer clock (Zilog "PCLK")
@@ -893,6 +904,7 @@ module sun3_fpga(/* clock, reset */
 		       MATCH_MEMERR_ADDR ? EXPAND_8BITS(8'h00) :
 		       MATCH_TIMER     ? EXPAND_8BITS(timer_out) :
 		       MATCH_IRQREG    ? EXPAND_8BITS(irqreg_out) :
+		       MATCH_CYCTR     ? cyctr_out :
 `ifdef LANCE_ETHERNET
 		       MATCH_AMDLE     ? ethernet_out :
 `endif
@@ -908,6 +920,7 @@ module sun3_fpga(/* clock, reset */
    assign DO_ACK = ( // FIXME: 32 vs 16 vs 8 bits, sun3 (or rewire for eevryone to be 32-bits-like ?)
 		     /* reads */
 		     ( SUN3_RW_n & C_S4 & (MATCH_CTX | MATCH_IDPROM | MATCH_SYSEN | MATCH_BERR |              MATCH_PROM_BOOT | MATCH_MEMERR_CTRL | MATCH_MEMERR_ADDR)) | // entering S4, quick devices (RO or WR)
+		     ( SUN3_RW_n & C_S4 & (MATCH_CYCTR)) | // read-only, 32-bits
 		     ( SUN3_RW_n & C_S4 & (MATCH_SMAP)) |  // entering S4, quick devices (CTX is 1 clock but went valid after being written, not affected by SUN3_A)
 		     ( SUN3_RW_n & C_S4 & (MATCH_PMAP)) |  // entering S4, physical map needed an extra cycle
 		     ( SUN3_RW_n & C_S6 & (MATCH_EEPROM | MATCH_TIMER | MATCH_IRQREG | MATCH_PROM)) | // entering S6, devices going through the MMU
@@ -954,7 +967,7 @@ module sun3_fpga(/* clock, reset */
 `ifdef  DEVICE_8BITS_ON_32BITS_BUS
    assign P_DSACK_n[1] = ~(DO_ACK); // everybody is 32-bits
 `else
-   assign P_DSACK_n[1] = ~(DO_ACK & (MATCH_PMAP | MATCH_MEMERR_ADDR | MATCH_PROM_BOOT | MATCH_PROM | MATCH_MEMX | MATCH_VME32_32 | MATCH_FBX)); // 32-bits devices only
+   assign P_DSACK_n[1] = ~(DO_ACK & (MATCH_PMAP | MATCH_MEMERR_ADDR | MATCH_PROM_BOOT | MATCH_PROM | MATCH_MEMX | MATCH_VME32_32 | MATCH_FBX | MATCH_CYCTR)); // 32-bits devices only
 `endif
    
    
@@ -1151,7 +1164,7 @@ module sun3_fpga(/* clock, reset */
 				     .clk(eth_clk),
 				     .reset(~P_RESET_n), // CHECKME: why 2 resets ???
 				     .reset_n(P_RESET_n),
-				     .iv() // (iv[191:0])
+				     .iv(iv[191:0]) // (iv[191:0])
 				     );
 
 

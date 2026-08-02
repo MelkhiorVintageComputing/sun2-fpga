@@ -208,7 +208,9 @@ module top(/* clock, reset */
    
    assign HALT_INn = ~sys_reset & ~RESET_OUT; /* board reset => reset CPU (HALTn seem needed) */
 
-   WF68K30L_TOP suska_68k30l (
+   WF68K30L_TOP #(.ICACHE_ENABLE(1'b1),
+		  .ICACHE_SIZE(4096)
+		  ) suska_68k30l (
         .CLK(CLK),
         
         // Address and data:
